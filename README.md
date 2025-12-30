@@ -2,9 +2,6 @@
 
 A personal AI assistant built on n8n that helps you manage tasks, capture ideas, and stay focused through Telegram.
 
-<p align="center">
-  <img src="images/demo.jpg" alt="Jarvis Demo" width="350">
-</p>
 
 ## Features
 
@@ -14,6 +11,10 @@ A personal AI assistant built on n8n that helps you manage tasks, capture ideas,
 - **Context Memory** - Remembers recent conversations ("mark that done", "snooze the first one")
 - **Morning Briefing** - Daily digest with weather, priorities, and strategic advice
 - **Smart Notifications** - Reminders, deadline alerts, weekly reviews
+
+<p align="center">
+  <img src="images/demo.jpg" alt="Jarvis Demo" width="350">
+</p>
 
 ### Quick Commands
 | Command | What it does |
