@@ -1,0 +1,680 @@
+{
+  "name": "Jarvis_SmartNotifications",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "id": "smart-trigger",
+      "name": "Every 30 Minutes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine what notifications to check based on time\nconst now = new Date();\nconst hour = now.getHours();\nconst dayOfWeek = now.getDay(); // 0 = Sunday\nconst minute = now.getMinutes();\n\n// Calculate time windows\nconst nowISO = now.toISOString();\nconst in60min = new Date(now.getTime() + 60 * 60 * 1000);\nconst in60ISO = in60min.toISOString();\n\n// Today's boundaries\nconst todayStart = new Date(now);\ntodayStart.setHours(0,0,0,0);\nconst todayEnd = new Date(now);\ntodayEnd.setHours(23,59,59,999);\n\n// Tomorrow and week boundaries\nconst tomorrowEnd = new Date(todayEnd);\ntomorrowEnd.setDate(tomorrowEnd.getDate() + 1);\nconst weekEnd = new Date(todayEnd);\nweekEnd.setDate(weekEnd.getDate() + 7);\n\n// This week start (for weekly review)\nconst weekStart = new Date(now);\nweekStart.setDate(now.getDate() - dayOfWeek);\nweekStart.setHours(0,0,0,0);\n\n// Last week boundaries (for trends)\nconst lastWeekStart = new Date(weekStart);\nlastWeekStart.setDate(lastWeekStart.getDate() - 7);\nconst lastWeekEnd = new Date(weekStart);\nlastWeekEnd.setMilliseconds(-1); // End of last week\n\n// Determine what to check\nconst checks = {\n  reminders: true, // Always check for upcoming reminders\n  morningDigest: (hour === 8 || hour === 9) && minute < 30, // 8-9:30 AM window\n  afternoonCheck: hour === 14 && minute < 30, // 2-2:30 PM window\n  weeklyReview: dayOfWeek === 0 && hour === 19 && minute < 30, // Sunday 7-7:30 PM\n  isWeeklyReviewTime: dayOfWeek === 0 && hour === 19 && minute < 30\n};\n\nreturn [{\n  json: {\n    now: nowISO,\n    reminderCheckUntil: in60ISO,\n    todayStart: todayStart.toISOString(),\n    todayEnd: todayEnd.toISOString(),\n    tomorrowEnd: tomorrowEnd.toISOString(),\n    weekEnd: weekEnd.toISOString(),\n    weekStart: weekStart.toISOString(),\n    lastWeekStart: lastWeekStart.toISOString(),\n    lastWeekEnd: lastWeekEnd.toISOString(),\n    hour,\n    dayOfWeek,\n    checks,\n    timeLabel: now.toLocaleString('en-US', {\n      timeZone: 'America/New_York',\n      weekday: 'long',\n      month: 'short',\n      day: 'numeric',\n      hour: 'numeric',\n      minute: '2-digit'\n    })\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "id": "smart-time-check",
+      "name": "Determine What to Check"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "2d72ec63-f882-809a-85c5-d2f4927b3856",
+          "mode": "list",
+          "cachedResultName": "Jarvis",
+          "cachedResultUrl": "https://www.notion.so/2d72ec63f882809a85c5d2f4927b3856"
+        },
+        "returnAll": true,
+        "filterType": "manual",
+        "matchType": "anyFilter",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Note Type|select",
+              "condition": "equals",
+              "selectValue": "reminder"
+            },
+            {
+              "key": "Deadline|date",
+              "condition": "is_not_empty"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [400, 0],
+      "id": "smart-query",
+      "name": "Get Reminders & Deadlines",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process all notes and organize by type\nfunction getProp(note, propName) {\n  const prop = note.properties?.[propName];\n  if (!prop) return null;\n  if (prop.type === 'title') return prop.title?.[0]?.plain_text || '';\n  if (prop.type === 'rich_text') return prop.rich_text?.[0]?.plain_text || '';\n  if (prop.type === 'select') return prop.select?.name || '';\n  if (prop.type === 'multi_select') return (prop.multi_select || []).map(s => s.name);\n  if (prop.type === 'date') return prop.date?.start || '';\n  return null;\n}\n\nconst timeInfo = $('Determine What to Check').item.json;\nconst now = new Date(timeInfo.now);\n\nconst upcomingReminders = [];\nconst todayDeadlines = [];\nconst tomorrowDeadlines = [];\nconst weekDeadlines = [];\n\nfor (const item of items) {\n  const note = item.json;\n  const noteType = getProp(note, 'Note Type');\n  const title = getProp(note, 'Name') || 'Untitled';\n  const priority = getProp(note, 'Priority') || 'medium';\n  const tags = getProp(note, 'Tags') || [];\n  \n  // Check for upcoming reminders\n  if (noteType === 'reminder') {\n    const reminderDate = getProp(note, 'Reminder Date');\n    if (reminderDate) {\n      const reminderTime = new Date(reminderDate);\n      const minUntil = Math.round((reminderTime - now) / 60000);\n      \n      // Only include reminders in next 60 minutes\n      if (minUntil > 0 && minUntil <= 60) {\n        const timeStr = reminderTime.toLocaleTimeString('en-US', {\n          timeZone: 'America/New_York',\n          hour: 'numeric',\n          minute: '2-digit',\n          hour12: true\n        });\n        \n        upcomingReminders.push({\n          title,\n          minUntil,\n          timeStr,\n          priority,\n          tags,\n          url: note.url\n        });\n      }\n    }\n  }\n  \n  // Check for deadlines\n  const deadline = getProp(note, 'Deadline');\n  if (deadline) {\n    const deadlineTime = new Date(deadline);\n    const timeStr = deadlineTime.toLocaleTimeString('en-US', {\n      timeZone: 'America/New_York',\n      hour: 'numeric',\n      minute: '2-digit',\n      hour12: true\n    });\n    \n    const entry = { title, timeStr, priority, url: note.url };\n    \n    if (deadlineTime <= new Date(timeInfo.todayEnd)) {\n      todayDeadlines.push(entry);\n    } else if (deadlineTime <= new Date(timeInfo.tomorrowEnd)) {\n      tomorrowDeadlines.push(entry);\n    } else if (deadlineTime <= new Date(timeInfo.weekEnd)) {\n      weekDeadlines.push(entry);\n    }\n  }\n}\n\n// Sort by priority (high first)\nconst sortByPriority = (a, b) => {\n  const order = { high: 0, medium: 1, low: 2 };\n  return order[a.priority] - order[b.priority];\n};\n\nupcomingReminders.sort((a, b) => a.minUntil - b.minUntil); // Sort by time\ntodayDeadlines.sort(sortByPriority);\ntomorrowDeadlines.sort(sortByPriority);\n\nreturn [{\n  json: {\n    timeInfo,\n    upcomingReminders,\n    todayDeadlines,\n    tomorrowDeadlines,\n    weekDeadlines,\n    hasReminders: upcomingReminders.length > 0,\n    hasDeadlines: (todayDeadlines.length + tomorrowDeadlines.length + weekDeadlines.length) > 0\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 0],
+      "id": "smart-organize",
+      "name": "Organize Notifications"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-something",
+              "leftValue": "={{ $json.hasReminders || ($json.hasDeadlines && $json.timeInfo.checks.morningDigest) || ($json.hasDeadlines && $json.timeInfo.checks.afternoonCheck) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [800, 0],
+      "id": "smart-filter",
+      "name": "Has Notifications?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build smart batched notification message\nconst data = $json;\nconst time = data.timeInfo;\nconst sections = [];\n\n// Limit items to prevent message overflow (Telegram limit: 4096 chars)\nconst MAX_REMINDERS = 5;\nconst MAX_DEADLINES = 5;\n\n// Header based on time of day\nif (time.checks.morningDigest) {\n  sections.push('🌅 Good Morning!');\n  sections.push('');\n} else if (time.checks.afternoonCheck) {\n  sections.push('🕑 Afternoon Check-In');\n  sections.push('');\n}\n\n// URGENT REMINDERS (always show if any, limited)\nif (data.upcomingReminders.length > 0) {\n  sections.push('🔔 UPCOMING REMINDERS');\n  sections.push('');\n  \n  data.upcomingReminders.slice(0, MAX_REMINDERS).forEach(r => {\n    const urgency = r.minUntil <= 15 ? '⚠️ ' : '';\n    const priority = r.priority === 'high' ? '⚡ ' : '';\n    sections.push(`${urgency}${priority}${r.title}`);\n    sections.push(`   ⏰ In ${r.minUntil} min (${r.timeStr})`);\n    sections.push('');\n  });\n  \n  if (data.upcomingReminders.length > MAX_REMINDERS) {\n    sections.push(`   ... and ${data.upcomingReminders.length - MAX_REMINDERS} more`);\n    sections.push('');\n  }\n  \n  sections.push('───────────────────');\n  sections.push('');\n}\n\n// DEADLINES (only in morning/afternoon)\nif (data.hasDeadlines && (time.checks.morningDigest || time.checks.afternoonCheck)) {\n  sections.push('⚠️ DEADLINES');\n  sections.push('');\n  \n  if (data.todayDeadlines.length > 0) {\n    sections.push('🔴 DUE TODAY:');\n    data.todayDeadlines.slice(0, MAX_DEADLINES).forEach(d => {\n      const priority = d.priority === 'high' ? '⚡ ' : '';\n      sections.push(`• ${priority}${d.title} (${d.timeStr})`);\n    });\n    if (data.todayDeadlines.length > MAX_DEADLINES) {\n      sections.push(`• ... and ${data.todayDeadlines.length - MAX_DEADLINES} more`);\n    }\n    sections.push('');\n  }\n  \n  // Only show tomorrow/week in morning digest\n  if (time.checks.morningDigest) {\n    if (data.tomorrowDeadlines.length > 0) {\n      sections.push('🟡 DUE TOMORROW:');\n      data.tomorrowDeadlines.slice(0, MAX_DEADLINES).forEach(d => {\n        sections.push(`• ${d.title}`);\n      });\n      if (data.tomorrowDeadlines.length > MAX_DEADLINES) {\n        sections.push(`• ... and ${data.tomorrowDeadlines.length - MAX_DEADLINES} more`);\n      }\n      sections.push('');\n    }\n    \n    if (data.weekDeadlines.length > 0) {\n      sections.push(`📅 THIS WEEK: ${data.weekDeadlines.length} tasks`);\n      sections.push('');\n    }\n  }\n}\n\n// Only send if we have content\nif (sections.length === 0) {\n  return [];\n}\n\nlet message = sections.join('\\n');\n\n// Final safety check for Telegram limit\nif (message.length > 4000) {\n  message = message.substring(0, 3950) + '\\n\\n... (truncated)';\n}\n\nreturn [{ json: { message, timestamp: time.timeLabel } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 0],
+      "id": "smart-format",
+      "name": "Format Batched Message"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1200, 0],
+      "id": "smart-send",
+      "name": "Send Notification",
+      "webhookId": "smart-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "2d72ec63-f882-809a-85c5-d2f4927b3856",
+          "mode": "list",
+          "cachedResultName": "Jarvis",
+          "cachedResultUrl": "https://www.notion.so/2d72ec63f882809a85c5d2f4927b3856"
+        },
+        "returnAll": true,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": "When|date",
+              "condition": "on_or_after",
+              "date": "={{ $('Determine What to Check').item.json.weekStart }}"
+            },
+            {
+              "key": "When|date",
+              "condition": "on_or_before",
+              "date": "={{ $('Determine What to Check').item.json.now }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [400, 300],
+      "id": "weekly-query",
+      "name": "Get Week's Notes",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-sunday-evening",
+              "leftValue": "={{ $('Determine What to Check').item.json.checks.isWeeklyReviewTime }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "id": "weekly-check",
+      "name": "Is Weekly Review Time?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze week's activity with trends\nfunction getProp(note, propName) {\n  const prop = note.properties?.[propName];\n  if (!prop) return null;\n  if (prop.type === 'title') return prop.title?.[0]?.plain_text || '';\n  if (prop.type === 'rich_text') return prop.rich_text?.[0]?.plain_text || '';\n  if (prop.type === 'select') return prop.select?.name || '';\n  if (prop.type === 'multi_select') return (prop.multi_select || []).map(s => s.name);\n  return null;\n}\n\nfunction analyzeItems(items) {\n  const stats = { total: items.length, byType: {}, byPriority: {}, completed: 0 };\n  const allTags = [];\n  \n  for (const item of items) {\n    const note = item.json;\n    const type = getProp(note, 'Note Type') || 'other';\n    const priority = getProp(note, 'Priority') || 'medium';\n    const status = getProp(note, 'Status') || 'pending';\n    const tags = getProp(note, 'Tags') || [];\n    \n    stats.byType[type] = (stats.byType[type] || 0) + 1;\n    stats.byPriority[priority] = (stats.byPriority[priority] || 0) + 1;\n    if (status === 'completed') stats.completed++;\n    tags.forEach(t => allTags.push(t));\n  }\n  \n  return { stats, allTags };\n}\n\n// Analyze this week\nconst thisWeek = analyzeItems(items);\nconst stats = thisWeek.stats;\nconst allTags = thisWeek.allTags;\n\n// Analyze last week (from Get Last Week's Notes)\nlet lastWeekItems = [];\ntry {\n  lastWeekItems = $input.all().length > 1 ? [] : [];\n  // Try to get from the parallel branch - may not be available\n  const lastWeekNode = $items('Get Last Week\\'s Notes', 0, 0);\n  if (lastWeekNode && lastWeekNode.length) {\n    lastWeekItems = lastWeekNode;\n  }\n} catch (e) {\n  lastWeekItems = [];\n}\nconst lastWeek = analyzeItems(lastWeekItems);\n\n// Calculate trends\nconst trends = {\n  totalChange: stats.total - lastWeek.stats.total,\n  totalPercent: lastWeek.stats.total > 0 ? Math.round(((stats.total - lastWeek.stats.total) / lastWeek.stats.total) * 100) : 0,\n  completedChange: stats.completed - lastWeek.stats.completed,\n  completedPercent: lastWeek.stats.completed > 0 ? Math.round(((stats.completed - lastWeek.stats.completed) / lastWeek.stats.completed) * 100) : 0,\n  tasksChange: (stats.byType.task || 0) - (lastWeek.stats.byType.task || 0),\n  ideasChange: (stats.byType.idea || 0) - (lastWeek.stats.byType.idea || 0),\n  highPriorityChange: (stats.byPriority.high || 0) - (lastWeek.stats.byPriority.high || 0)\n};\n\n// Format trend strings\nfunction formatTrend(change, percent) {\n  if (change === 0) return '→ same as last week';\n  const arrow = change > 0 ? '↑' : '↓';\n  const sign = change > 0 ? '+' : '';\n  return `${arrow} ${sign}${change} (${sign}${percent}%) vs last week`;\n}\n\ntrends.totalTrend = formatTrend(trends.totalChange, trends.totalPercent);\ntrends.completedTrend = formatTrend(trends.completedChange, trends.completedPercent);\n\n// Top tags\nconst tagCounts = {};\nallTags.forEach(t => tagCounts[t] = (tagCounts[t] || 0) + 1);\nconst topTags = Object.entries(tagCounts).sort((a,b) => b[1] - a[1]).slice(0,5);\n\n// Most productive day (with bounds checking)\nconst dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];\nconst byDay = [0, 0, 0, 0, 0, 0, 0];\nitems.forEach(item => {\n  const when = item.json.properties?.['When']?.date?.start;\n  if (when) {\n    const day = new Date(when).getDay();\n    if (day >= 0 && day < 7) byDay[day]++;\n  }\n});\nconst maxDay = Math.max(...byDay);\nconst maxDayIdx = maxDay > 0 ? byDay.indexOf(maxDay) : -1;\nconst mostProductiveDay = maxDayIdx >= 0 ? dayNames[maxDayIdx] : null;\n\nconst weekStart = new Date($('Determine What to Check').item.json.weekStart);\nconst weekEnd = new Date();\nconst weekLabel = `${weekStart.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} - ${weekEnd.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}`;\n\nreturn [{\n  json: {\n    weekLabel,\n    stats,\n    lastWeekStats: lastWeek.stats,\n    trends,\n    topTags,\n    mostProductiveDay,\n    byDay,\n    notesData: JSON.stringify(items.slice(0, 15).map(i => ({\n      title: getProp(i.json, 'Name'),\n      type: getProp(i.json, 'Note Type'),\n      priority: getProp(i.json, 'Priority')\n    })), null, 2)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300],
+      "id": "weekly-analyze",
+      "name": "Analyze Week"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are Jarvis providing Ed's weekly review. Be concise and actionable.\n\nReturn ONLY valid JSON:\n{\n  \"accomplishments\": \"\",\n  \"sidecar_highlight\": \"\",\n  \"next_week_focus\": []\n}\n\n• accomplishments (100-150 words) - Key wins this week\n• sidecar_highlight (50-75 words) - Sidecar-specific progress\n• next_week_focus (array, 3 items) - Top priorities for next week",
+              "role": "system"
+            },
+            {
+              "content": "=Week: {{ $json.weekLabel }}\n\nStats:\n• Total: {{ $json.stats.total }} notes\n• Types: {{ JSON.stringify($json.stats.byType) }}\n• Priority: {{ $json.stats.byPriority.high || 0 }} high, {{ $json.stats.byPriority.medium || 0 }} medium\n• Top tags: {{ $json.topTags.slice(0,3).map(t => t[0]).join(', ') || 'none' }}\n• Most productive day: {{ $json.mostProductiveDay || 'N/A' }}\n\nSample notes:\n{{ $json.notesData }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [800, 300],
+      "id": "weekly-ai",
+      "name": "Generate Weekly Review",
+      "credentials": {
+        "openAiApi": {
+          "id": "zVkXEcc6tL0uj0v0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format weekly review with trends\nconst review = $json.message.content;\nconst data = $('Analyze Week').item.json;\n\n// Trend emoji helper\nfunction trendEmoji(change) {\n  if (change > 0) return '📈';\n  if (change < 0) return '📉';\n  return '➡️';\n}\n\nconst sections = [];\n\nsections.push(`📊 *WEEKLY REVIEW* - ${data.weekLabel}`);\nsections.push('');\n\n// TRENDS SECTION\nsections.push('📈 *TRENDS*');\nsections.push(`${trendEmoji(data.trends.totalChange)} Activity: ${data.stats.total} notes ${data.trends.totalTrend}`);\nif (data.stats.completed > 0 || data.lastWeekStats.completed > 0) {\n  sections.push(`${trendEmoji(data.trends.completedChange)} Completed: ${data.stats.completed} items ${data.trends.completedTrend}`);\n}\nif (data.mostProductiveDay) {\n  sections.push(`⭐ Most productive day: ${data.mostProductiveDay}`);\n}\nsections.push('');\nsections.push('───────────────────');\nsections.push('');\n\n// ACCOMPLISHMENTS\nsections.push('🎯 *ACCOMPLISHMENTS*');\nsections.push(review.accomplishments);\nsections.push('');\nsections.push('───────────────────');\nsections.push('');\n\n// SIDECAR\nsections.push('🚀 *SIDECAR*');\nsections.push(review.sidecar_highlight);\nsections.push('');\nsections.push('───────────────────');\nsections.push('');\n\n// NEXT WEEK\nsections.push('⏭️ *NEXT WEEK FOCUS*');\nreview.next_week_focus.forEach((item, i) => {\n  sections.push(`${i+1}. ${item}`);\n});\nsections.push('');\nsections.push('───────────────────');\nsections.push('');\n\n// STATS\nconst statParts = [];\nstatParts.push(`${data.stats.total} notes`);\nif (data.stats.byType.task) statParts.push(`${data.stats.byType.task} tasks`);\nif (data.stats.byType.idea) statParts.push(`${data.stats.byType.idea} ideas`);\nif (data.stats.byPriority.high) statParts.push(`${data.stats.byPriority.high} high-priority`);\nsections.push(`📊 ${statParts.join(' • ')}`);\nsections.push('');\nsections.push('Great work this week! 💪');\n\nconst message = sections.join('\\n');\n\nreturn [{ json: { message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300],
+      "id": "weekly-format",
+      "name": "Format Weekly Review"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1200, 300],
+      "id": "weekly-send",
+      "name": "Send Weekly Review",
+      "webhookId": "weekly-review-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "2d72ec63-f882-809a-85c5-d2f4927b3856",
+          "mode": "list"
+        },
+        "returnAll": true,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": "When|date",
+              "condition": "on_or_after",
+              "date": "={{ $('Determine What to Check').item.json.lastWeekStart }}"
+            },
+            {
+              "key": "When|date",
+              "condition": "on_or_before",
+              "date": "={{ $('Determine What to Check').item.json.lastWeekEnd }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [400, 400],
+      "id": "last-week-query",
+      "name": "Get Last Week's Notes",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-morning-pattern-check",
+              "leftValue": "={{ $('Determine What to Check').item.json.checks.morningDigest }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [200, 500],
+      "id": "pattern-time-check",
+      "name": "Is Pattern Check Time?"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "2d72ec63-f882-809a-85c5-d2f4927b3856",
+          "mode": "list"
+        },
+        "returnAll": true,
+        "filterType": "manual",
+        "matchType": "anyFilter",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Status|select",
+              "condition": "equals",
+              "selectValue": "completed"
+            },
+            {
+              "key": "Status|select",
+              "condition": "equals",
+              "selectValue": "pending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [400, 500],
+      "id": "pattern-query",
+      "name": "Get Tasks for Pattern Analysis",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze patterns in task completion\nfunction getProp(note, propName) {\n  const prop = note.properties?.[propName];\n  if (!prop) return null;\n  if (prop.type === 'title') return prop.title?.[0]?.plain_text || '';\n  if (prop.type === 'rich_text') return prop.rich_text?.[0]?.plain_text || '';\n  if (prop.type === 'select') return prop.select?.name || '';\n  if (prop.type === 'multi_select') return (prop.multi_select || []).map(s => s.name);\n  if (prop.type === 'date') return prop.date?.start || '';\n  return null;\n}\n\nconst now = new Date();\nconst dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' });\nconst dayNum = now.getDay();\n\n// Separate completed and pending\nconst completed = [];\nconst pending = [];\n\nfor (const item of items) {\n  const note = item.json;\n  const status = getProp(note, 'Status');\n  const title = getProp(note, 'Name') || 'Untitled';\n  const lastEdited = new Date(note.last_edited_time);\n  const created = new Date(note.created_time);\n  \n  const entry = {\n    title,\n    type: getProp(note, 'Note Type') || 'task',\n    priority: getProp(note, 'Priority') || 'medium',\n    lastEdited,\n    created,\n    dayOfWeekCreated: created.getDay(),\n    dayOfWeekCompleted: status === 'completed' ? lastEdited.getDay() : null\n  };\n  \n  if (status === 'completed') {\n    completed.push(entry);\n  } else if (status === 'pending') {\n    pending.push(entry);\n  }\n}\n\n// Pattern Detection\nconst patterns = [];\n\n// 1. OVERLOAD CHECK: Too many pending tasks\nif (pending.length > 8) {\n  patterns.push({\n    type: 'overcommit',\n    severity: pending.length > 15 ? 'high' : 'medium',\n    message: `You have ${pending.length} pending tasks. Consider archiving or prioritizing to reduce cognitive load.`,\n    emoji: '⚠️'\n  });\n}\n\n// 2. HIGH PRIORITY OVERLOAD: Too many high priority items\nconst highPriorityPending = pending.filter(t => t.priority === 'high');\nif (highPriorityPending.length > 3) {\n  patterns.push({\n    type: 'priority_inflation',\n    severity: 'medium',\n    message: `You have ${highPriorityPending.length} high-priority items. If everything is urgent, nothing is. Consider re-prioritizing.`,\n    emoji: '🔺'\n  });\n}\n\n// 3. DAY-OF-WEEK PATTERN: Check completion rate by day\nconst completionsByDay = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat\nconst creationsByDay = [0, 0, 0, 0, 0, 0, 0];\n\ncompleted.forEach(t => {\n  if (t.dayOfWeekCompleted !== null) {\n    completionsByDay[t.dayOfWeekCompleted]++;\n  }\n});\n\npending.concat(completed).forEach(t => {\n  creationsByDay[t.dayOfWeekCreated]++;\n});\n\n// Check if today is a historically low-completion day\nconst dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];\nconst totalCompletions = completionsByDay.reduce((a, b) => a + b, 0);\nconst avgCompletions = totalCompletions > 0 ? totalCompletions / 7 : 0;\nconst todayCompletions = completionsByDay[dayNum] || 0;\n\nif (totalCompletions > 7 && avgCompletions > 0 && todayCompletions < avgCompletions * 0.5) {\n  patterns.push({\n    type: 'low_day',\n    severity: 'low',\n    message: `${dayOfWeek}s tend to be your lower-productivity days. Consider scheduling lighter work or quick wins.`,\n    emoji: '📊'\n  });\n}\n\n// 4. COMPLETION STREAK: Check for recent momentum\nconst oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\nconst recentCompletions = completed.filter(t => t.lastEdited >= oneWeekAgo).length;\n\nif (recentCompletions === 0 && completed.length > 0) {\n  patterns.push({\n    type: 'streak_broken',\n    severity: 'medium',\n    message: 'No completions in the last week. Try tackling one small task to build momentum.',\n    emoji: '💪'\n  });\n} else if (recentCompletions >= 5) {\n  patterns.push({\n    type: 'streak_active',\n    severity: 'positive',\n    message: `Great momentum! ${recentCompletions} tasks completed this week. Keep it up!`,\n    emoji: '🔥'\n  });\n}\n\n// 5. STALE TASKS: Items pending for too long\nconst twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);\nconst staleTasks = pending.filter(t => t.created < twoWeeksAgo);\n\nif (staleTasks.length > 3) {\n  patterns.push({\n    type: 'stale_tasks',\n    severity: 'medium',\n    message: `${staleTasks.length} tasks have been pending for 2+ weeks. Review if they're still relevant or should be archived.`,\n    emoji: '🕸️'\n  });\n}\n\n// Only return patterns that should generate notifications\nconst notifiablePatterns = patterns.filter(p => p.severity !== 'positive' || Math.random() < 0.3); // Show positive 30% of the time\n\nreturn [{\n  json: {\n    patterns: notifiablePatterns,\n    hasPatterns: notifiablePatterns.length > 0,\n    stats: {\n      totalPending: pending.length,\n      totalCompleted: completed.length,\n      highPriority: highPriorityPending.length,\n      recentCompletions,\n      staleTasks: staleTasks.length\n    },\n    dayOfWeek\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 500],
+      "id": "pattern-analyze",
+      "name": "Detect Patterns"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-patterns",
+              "leftValue": "={{ $json.hasPatterns }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [800, 500],
+      "id": "pattern-has-check",
+      "name": "Has Patterns?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format pattern insights message\nconst data = $json;\n\nif (!data.patterns || data.patterns.length === 0) {\n  return [];\n}\n\nlet message = `🧠 **Pattern Insights** - ${data.dayOfWeek}\\n\\n`;\n\ndata.patterns.forEach(pattern => {\n  message += `${pattern.emoji} ${pattern.message}\\n\\n`;\n});\n\nmessage += `───────────────────\\n`;\nmessage += `📊 ${data.stats.totalPending} pending • ${data.stats.recentCompletions} completed this week`;\n\nreturn [{ json: { message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 500],
+      "id": "pattern-format",
+      "name": "Format Pattern Insights"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1200, 500],
+      "id": "pattern-send",
+      "name": "Send Pattern Insights",
+      "webhookId": "pattern-insights-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Determine What to Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine What to Check": {
+      "main": [
+        [
+          {
+            "node": "Get Reminders & Deadlines",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Weekly Review Time?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Pattern Check Time?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Reminders & Deadlines": {
+      "main": [
+        [
+          {
+            "node": "Organize Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Organize Notifications": {
+      "main": [
+        [
+          {
+            "node": "Has Notifications?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Notifications?": {
+      "main": [
+        [
+          {
+            "node": "Format Batched Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Batched Message": {
+      "main": [
+        [
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Weekly Review Time?": {
+      "main": [
+        [
+          {
+            "node": "Get Week's Notes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Last Week's Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Week's Notes": {
+      "main": [
+        [
+          {
+            "node": "Analyze Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Week's Notes": {
+      "main": [
+        [
+          {
+            "node": "Analyze Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Week": {
+      "main": [
+        [
+          {
+            "node": "Generate Weekly Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Weekly Review": {
+      "main": [
+        [
+          {
+            "node": "Format Weekly Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weekly Review": {
+      "main": [
+        [
+          {
+            "node": "Send Weekly Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Pattern Check Time?": {
+      "main": [
+        [
+          {
+            "node": "Get Tasks for Pattern Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tasks for Pattern Analysis": {
+      "main": [
+        [
+          {
+            "node": "Detect Patterns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Patterns": {
+      "main": [
+        [
+          {
+            "node": "Has Patterns?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Patterns?": {
+      "main": [
+        [
+          {
+            "node": "Format Pattern Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Pattern Insights": {
+      "main": [
+        [
+          {
+            "node": "Send Pattern Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Every 30 Minutes": {
+      "recurrenceRules": []
+    }
+  },
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

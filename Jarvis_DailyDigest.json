@@ -1,0 +1,548 @@
+{
+  "name": "Jarvis_MorningBriefing",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        -112
+      ],
+      "id": "8a26ad0d-2c26-4c41-b315-b0c888d7a74f",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate yesterday's date range in EST\nconst now = new Date();\n\n// Get yesterday's date\nconst yesterday = new Date(now);\nyesterday.setDate(yesterday.getDate() - 1);\n\n// Format as YYYY-MM-DD for display\nconst yesterdayDate = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });\n\n// Get start and end of yesterday in EST\nconst yesterdayStart = new Date(yesterday.toLocaleDateString('en-US', { timeZone: 'America/New_York' }));\nyesterdayStart.setHours(0, 0, 0, 0);\n\nconst yesterdayEnd = new Date(yesterday.toLocaleDateString('en-US', { timeZone: 'America/New_York' }));\nyesterdayEnd.setHours(23, 59, 59, 999);\n\nreturn [{\n  json: {\n    yesterdayDate: yesterdayDate,\n    yesterdayStart: yesterdayStart.toISOString(),\n    yesterdayEnd: yesterdayEnd.toISOString(),\n    todayDate: now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),\n    dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' })\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -112
+      ],
+      "id": "1006cf3c-c73c-480b-af6c-8654a663c59d",
+      "name": "Calculate Dates"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "latitude",
+              "value": "40.7128"
+            },
+            {
+              "name": "longitude",
+              "value": "-74.0060"
+            },
+            {
+              "name": "current_weather",
+              "value": "true"
+            },
+            {
+              "name": "daily",
+              "value": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode"
+            },
+            {
+              "name": "temperature_unit",
+              "value": "fahrenheit"
+            },
+            {
+              "name": "timezone",
+              "value": "America/New_York"
+            },
+            {
+              "name": "forecast_days",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -96,
+        80
+      ],
+      "id": "weather-fetch-node",
+      "name": "Fetch Weather"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse weather data from Open-Meteo\nconst weather = $input.first().json;\n\n// Weather code mapping (WMO codes)\nconst weatherCodes = {\n  0: { desc: 'Clear sky', emoji: '☀️' },\n  1: { desc: 'Mainly clear', emoji: '🌤️' },\n  2: { desc: 'Partly cloudy', emoji: '⛅' },\n  3: { desc: 'Overcast', emoji: '☁️' },\n  45: { desc: 'Foggy', emoji: '🌫️' },\n  48: { desc: 'Depositing rime fog', emoji: '🌫️' },\n  51: { desc: 'Light drizzle', emoji: '🌧️' },\n  53: { desc: 'Moderate drizzle', emoji: '🌧️' },\n  55: { desc: 'Dense drizzle', emoji: '🌧️' },\n  61: { desc: 'Slight rain', emoji: '🌧️' },\n  63: { desc: 'Moderate rain', emoji: '🌧️' },\n  65: { desc: 'Heavy rain', emoji: '🌧️' },\n  66: { desc: 'Light freezing rain', emoji: '🌨️' },\n  67: { desc: 'Heavy freezing rain', emoji: '🌨️' },\n  71: { desc: 'Slight snow', emoji: '🌨️' },\n  73: { desc: 'Moderate snow', emoji: '🌨️' },\n  75: { desc: 'Heavy snow', emoji: '❄️' },\n  77: { desc: 'Snow grains', emoji: '🌨️' },\n  80: { desc: 'Slight rain showers', emoji: '🌦️' },\n  81: { desc: 'Moderate rain showers', emoji: '🌦️' },\n  82: { desc: 'Violent rain showers', emoji: '⛈️' },\n  85: { desc: 'Slight snow showers', emoji: '🌨️' },\n  86: { desc: 'Heavy snow showers', emoji: '❄️' },\n  95: { desc: 'Thunderstorm', emoji: '⛈️' },\n  96: { desc: 'Thunderstorm with slight hail', emoji: '⛈️' },\n  99: { desc: 'Thunderstorm with heavy hail', emoji: '⛈️' }\n};\n\nconst current = weather.current_weather || {};\nconst daily = weather.daily || {};\n\nconst code = current.weathercode || 0;\nconst weatherInfo = weatherCodes[code] || { desc: 'Unknown', emoji: '🌡️' };\n\nconst currentTemp = Math.round(current.temperature || 0);\nconst highTemp = Math.round(daily.temperature_2m_max?.[0] || 0);\nconst lowTemp = Math.round(daily.temperature_2m_min?.[0] || 0);\nconst rainChance = daily.precipitation_probability_max?.[0] || 0;\n\n// Build weather summary\nlet weatherSummary = `${weatherInfo.emoji} ${currentTemp}°F now • High ${highTemp}°F / Low ${lowTemp}°F`;\nlet weatherAlert = '';\n\nif (rainChance >= 60) {\n  weatherAlert = `\\n☔ *${rainChance}% chance of rain* - bring an umbrella!`;\n} else if (rainChance >= 30) {\n  weatherAlert = `\\n🌂 ${rainChance}% chance of rain - maybe grab an umbrella`;\n}\n\nreturn [{\n  json: {\n    dataType: 'weather',\n    weatherSummary: weatherSummary,\n    weatherAlert: weatherAlert,\n    weatherCondition: weatherInfo.desc,\n    currentTemp: currentTemp,\n    highTemp: highTemp,\n    lowTemp: lowTemp,\n    rainChance: rainChance,\n    weatherEmoji: weatherInfo.emoji\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        80
+      ],
+      "id": "weather-process-node",
+      "name": "Process Weather"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "2d72ec63-f882-809a-85c5-d2f4927b3856",
+          "mode": "list",
+          "cachedResultName": "Jarvis",
+          "cachedResultUrl": "https://www.notion.so/2d72ec63f882809a85c5d2f4927b3856"
+        },
+        "returnAll": true,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": "When|date",
+              "condition": "on_or_after",
+              "date": "={{ $json.yesterdayStart }}"
+            },
+            {
+              "key": "When|date",
+              "condition": "on_or_before",
+              "date": "={{ $json.yesterdayEnd }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        96,
+        -112
+      ],
+      "id": "98c6a4b0-bc1a-4edb-a5e1-79ce61c165cf",
+      "name": "Get Yesterday's Notes",
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Organize notes by type and priority\nconst dateInfo = $('Calculate Dates').first().json;\nconst notes = $input.all().map(i => i.json);\n\nfunction getProp(note, propName) {\n  const prop = note.properties?.[propName];\n  if (!prop) return null;\n  \n  // Handle different property types\n  if (prop.type === 'title') return prop.title?.[0]?.plain_text || '';\n  if (prop.type === 'rich_text') return prop.rich_text?.[0]?.plain_text || '';\n  if (prop.type === 'select') return prop.select?.name || '';\n  if (prop.type === 'multi_select') return (prop.multi_select || []).map(s => s.name);\n  if (prop.type === 'date') return prop.date?.start || '';\n  \n  return null;\n}\n\nconst organized = {\n  reminders: [],\n  tasks: [],\n  ideas: [],\n  meetings: [],\n  other: [],\n  highPriority: [],\n  stats: {\n    total: notes.length,\n    byType: {},\n    byPriority: {}\n  }\n};\n\nfor (const note of notes) {\n  const item = {\n    title: getProp(note, 'Name') || 'Untitled',\n    summary: getProp(note, 'Summary') || '',\n    noteType: getProp(note, 'Note Type') || 'other',\n    priority: getProp(note, 'Priority') || 'medium',\n    tags: getProp(note, 'Tags') || [],\n    actions: getProp(note, 'Actions') || [],\n    reminderDate: getProp(note, 'Reminder Date') || '',\n    deadline: getProp(note, 'Deadline') || '',\n    peopleCompanies: getProp(note, 'People/Companies') || [],\n    url: note.url\n  };\n  \n  // Count by type\n  organized.stats.byType[item.noteType] = (organized.stats.byType[item.noteType] || 0) + 1;\n  organized.stats.byPriority[item.priority] = (organized.stats.byPriority[item.priority] || 0) + 1;\n  \n  // Categorize\n  if (item.noteType === 'reminder') organized.reminders.push(item);\n  else if (item.noteType === 'task') organized.tasks.push(item);\n  else if (item.noteType === 'idea') organized.ideas.push(item);\n  else if (item.noteType === 'meeting-notes') organized.meetings.push(item);\n  else organized.other.push(item);\n  \n  if (item.priority === 'high') organized.highPriority.push(item);\n}\n\nreturn [{\n  json: {\n    dataType: 'notes',\n    yesterdayDate: dateInfo.yesterdayDate,\n    todayDate: dateInfo.todayDate,\n    dayOfWeek: dateInfo.dayOfWeek,\n    organized: organized,\n    notesJSON: JSON.stringify(notes.map(n => ({\n      title: getProp(n, 'Name'),\n      summary: getProp(n, 'Summary'),\n      type: getProp(n, 'Note Type'),\n      priority: getProp(n, 'Priority'),\n      tags: getProp(n, 'Tags'),\n      actions: getProp(n, 'Actions')\n    })), null, 2)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -112
+      ],
+      "id": "378e6d9c-5d5b-4cfc-8c18-29e020017808",
+      "name": "Organize Notes"
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        512,
+        80
+      ],
+      "id": "merge-all-data",
+      "name": "Wait For All Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine all data from the 3 branches\nconst allItems = $input.all();\n\n// Find each data type\nlet notesData = null;\nlet weatherData = null;\nlet focusData = null;\n\nfor (const item of allItems) {\n  const data = item.json;\n  if (data.dataType === 'notes') {\n    notesData = data;\n  } else if (data.dataType === 'weather') {\n    weatherData = data;\n  } else if (data.dataType === 'focus') {\n    focusData = data;\n  }\n}\n\n// Defaults if any branch failed\nif (!notesData) {\n  notesData = {\n    yesterdayDate: new Date().toLocaleDateString('en-CA'),\n    todayDate: new Date().toLocaleDateString('en-CA'),\n    dayOfWeek: new Date().toLocaleDateString('en-US', { weekday: 'long' }),\n    organized: { stats: { total: 0, byType: {}, byPriority: {} }, tasks: [], ideas: [], reminders: [], meetings: [], other: [], highPriority: [] },\n    notesJSON: '[]'\n  };\n}\n\nif (!weatherData) {\n  weatherData = {\n    weatherSummary: '🌡️ Weather unavailable',\n    weatherAlert: ''\n  };\n}\n\nif (!focusData) {\n  focusData = {\n    focusItems: [],\n    dayInsight: '',\n    warningMessage: null,\n    totalTasks: 0,\n    overdueCount: 0,\n    dueTodayCount: 0\n  };\n}\n\nreturn [{\n  json: {\n    ...notesData,\n    weather: weatherData,\n    focus: focusData\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        80
+      ],
+      "id": "combine-all-data",
+      "name": "Combine All Data"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are Jarvis, Ed's AI assistant. Ed is building Sidecar.bz (creator analytics platform) while working at Deloitte.\n\nReturn ONLY valid JSON - be CONCISE:\n{\n  \"motivational_quote\": \"\",\n  \"quote_author\": \"\",\n  \"yesterday_summary\": \"\",\n  \"strategic_tip\": \"\",\n  \"key_action\": \"\",\n  \"encouragement\": \"\"\n}\n\n• motivational_quote: Short inspiring quote (1 sentence)\n• quote_author: Author name\n• yesterday_summary (20-30 words max): Brief recap of yesterday's notes. If none, say \"Fresh start today!\"\n• strategic_tip (30-40 words max): ONE specific actionable tip for Sidecar this week\n• key_action (5-10 words): ONE priority task for today, start with verb\n• encouragement (1 sentence): Brief motivating closer",
+              "role": "system"
+            },
+            {
+              "content": "=Day: {{ $json.dayOfWeek }}\nDate: {{ $json.todayDate }}\nYesterday: {{ $json.yesterdayDate }}\n\nYesterday's Activity:\n- Total notes: {{ $json.organized.stats.total }}\n- High priority items: {{ $json.organized.stats.byPriority.high || 0 }}\n- Tasks: {{ $json.organized.tasks.length }}\n- Ideas: {{ $json.organized.ideas.length }}\n- Meetings: {{ $json.organized.meetings.length }}\n\n{{ $json.organized.stats.total > 0 ? 'Notes Summary:\\n' + $json.notesJSON : 'No notes captured yesterday.' }}\n\n---\n\nCreate today's strategic digest. Focus the Sidecar advice on competitive intelligence and market opportunities, NOT on yesterday's notes."
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        928,
+        80
+      ],
+      "id": "1a1b4475-b077-4143-9afd-4faaf819207f",
+      "name": "Generate Strategic Digest",
+      "credentials": {
+        "openAiApi": {
+          "id": "zVkXEcc6tL0uj0v0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the digest for Telegram (streamlined)\nconst digest = $json.message.content;\nconst combinedData = $('Combine All Data').item.json;\nconst dateInfo = combinedData;\nconst stats = dateInfo.organized?.stats || { total: 0 };\n\nconst weatherData = combinedData.weather || { weatherSummary: '🌡️ Weather unavailable', weatherAlert: '' };\nconst focusData = combinedData.focus || { focusItems: [] };\n\nconst urgencyEmoji = { 'critical': '🔴', 'high': '🟠', 'moderate': '🟡' };\n\nconst sections = [];\n\n// Header + Weather\nsections.push(`🌅 *Good Morning!*`);\nsections.push(`📅 ${dateInfo.dayOfWeek}, ${dateInfo.todayDate}`);\nsections.push(`${weatherData.weatherSummary}${weatherData.weatherAlert || ''}`);\nsections.push(``);\n\n// Quote\nsections.push(`💭 _\"${digest.motivational_quote}\"_ — ${digest.quote_author}`);\nsections.push(``);\n\n// Today's Focus (AI-prioritized tasks)\nif (focusData.focusItems && focusData.focusItems.length > 0) {\n  sections.push(`🎯 *Focus*`);\n  focusData.focusItems.slice(0, 3).forEach((item, idx) => {\n    const emoji = urgencyEmoji[item.urgencyLevel] || '🔵';\n    sections.push(`${emoji} ${item.title}`);\n  });\n  sections.push(``);\n}\n\n// Yesterday (brief)\nif (stats.total > 0) {\n  sections.push(`📊 *Yesterday:* ${digest.yesterday_summary}`);\n  sections.push(``);\n}\n\n// Strategic Tip\nif (digest.strategic_tip) {\n  sections.push(`🚀 *Tip:* ${digest.strategic_tip}`);\n  sections.push(``);\n}\n\n// Key Action\nif (digest.key_action) {\n  sections.push(`📝 *Today:* ${digest.key_action}`);\n  sections.push(``);\n}\n\n// Encouragement\nsections.push(`${digest.encouragement} 💪`);\n\nconst telegramMessage = sections.join('\\n');\n\nreturn [{ json: { telegramMessage, digest, stats, weather: weatherData, focus: focusData } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        80
+      ],
+      "id": "1f27bb24-1d35-4adc-8a35-9ed8a6b22560",
+      "name": "Format Telegram Message"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.telegramMessage }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1344,
+        80
+      ],
+      "id": "0e9fc5d9-3de5-4966-a0d3-76600c60153a",
+      "name": "Send to Telegram",
+      "webhookId": "digest-telegram-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "2d72ec63-f882-809a-85c5-d2f4927b3856",
+          "mode": "list"
+        },
+        "limit": 50,
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Status|select",
+              "condition": "equals",
+              "selectValue": "pending"
+            }
+          ]
+        },
+        "options": {
+          "sort": {
+            "sortValue": [
+              {
+                "timestamp": "created_time",
+                "direction": "descending"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        -96,
+        280
+      ],
+      "id": "get-pending-tasks-digest",
+      "name": "Get Pending Tasks",
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format tasks for AI analysis\nconst items = $input.all();\nconst now = new Date();\nconst dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' });\n\nconst tasks = items.map(item => {\n  const props = item.json.properties || {};\n  const deadline = props['Deadline']?.date?.start || '';\n  const reminderDate = props['Reminder Date']?.date?.start || '';\n  \n  let daysUntilDeadline = null;\n  if (deadline) {\n    const deadlineDate = new Date(deadline);\n    daysUntilDeadline = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));\n  }\n  \n  return {\n    id: item.json.id,\n    title: props['Name']?.title?.[0]?.plain_text || 'Untitled',\n    type: props['Note Type']?.select?.name || 'task',\n    priority: props['Priority']?.select?.name || 'medium',\n    tags: (props['Tags']?.multi_select || []).map(t => t.name),\n    deadline: deadline,\n    daysUntilDeadline: daysUntilDeadline,\n    reminderDate: reminderDate,\n    summary: props['Summary']?.rich_text?.[0]?.plain_text || '',\n    createdTime: item.json.created_time\n  };\n});\n\nreturn [{\n  json: {\n    tasks: tasks,\n    dayOfWeek: dayOfWeek,\n    totalTasks: tasks.length,\n    highPriorityCount: tasks.filter(t => t.priority === 'high').length,\n    overdueCount: tasks.filter(t => t.daysUntilDeadline !== null && t.daysUntilDeadline < 0).length,\n    dueTodayCount: tasks.filter(t => t.daysUntilDeadline === 0).length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        280
+      ],
+      "id": "format-tasks-digest",
+      "name": "Format Tasks"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are Jarvis, analyzing tasks to recommend today's focus. Current day: {{ $json.dayOfWeek }}.\n\nPending tasks:\n{{ JSON.stringify($json.tasks, null, 2) }}\n\nStats: {{ $json.totalTasks }} total, {{ $json.highPriorityCount }} high priority, {{ $json.overdueCount }} overdue, {{ $json.dueTodayCount }} due today.\n\nReturn ONLY valid JSON with the top 3 focus items:\n{\n  \"focusItems\": [\n    {\n      \"title\": \"Task title\",\n      \"reason\": \"Brief reason (10-15 words)\",\n      \"urgencyLevel\": \"critical\" | \"high\" | \"moderate\"\n    }\n  ],\n  \"dayInsight\": \"One sentence about today's outlook\",\n  \"warningMessage\": \"Optional warning if overloaded, otherwise null\"\n}\n\nPrioritize: deadlines > high priority > quick wins. Consider day-of-week patterns.",
+              "role": "system"
+            },
+            {
+              "content": "Prioritize my tasks for today"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        320,
+        280
+      ],
+      "id": "ai-focus-digest",
+      "name": "AI Focus Items",
+      "credentials": {
+        "openAiApi": {
+          "id": "zVkXEcc6tL0uj0v0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract focus items from AI response\nconst result = $input.item.json.message?.content || $input.item.json;\nconst taskData = $('Format Tasks').item.json;\n\nreturn [{\n  json: {\n    dataType: 'focus',\n    focusItems: result.focusItems || [],\n    dayInsight: result.dayInsight || '',\n    warningMessage: result.warningMessage || null,\n    totalTasks: taskData.totalTasks,\n    highPriorityCount: taskData.highPriorityCount,\n    overdueCount: taskData.overdueCount,\n    dueTodayCount: taskData.dueTodayCount\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        280
+      ],
+      "id": "process-focus-digest",
+      "name": "Process Focus Items"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Calculate Dates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Weather",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Pending Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Dates": {
+      "main": [
+        [
+          {
+            "node": "Get Yesterday's Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Weather": {
+      "main": [
+        [
+          {
+            "node": "Process Weather",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Tasks": {
+      "main": [
+        [
+          {
+            "node": "Format Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Yesterday's Notes": {
+      "main": [
+        [
+          {
+            "node": "Organize Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Weather": {
+      "main": [
+        [
+          {
+            "node": "Wait For All Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Organize Notes": {
+      "main": [
+        [
+          {
+            "node": "Wait For All Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Tasks": {
+      "main": [
+        [
+          {
+            "node": "AI Focus Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Focus Items": {
+      "main": [
+        [
+          {
+            "node": "Process Focus Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Focus Items": {
+      "main": [
+        [
+          {
+            "node": "Wait For All Data",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Wait For All Data": {
+      "main": [
+        [
+          {
+            "node": "Combine All Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine All Data": {
+      "main": [
+        [
+          {
+            "node": "Generate Strategic Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Strategic Digest": {
+      "main": [
+        [
+          {
+            "node": "Format Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "c5082960-6a9c-49d7-8023-ec2a1c8fccab",
+  "meta": {
+    "instanceId": "85497a1594c900fdb3ce61acb2a713b87d8e486b0ac44ed69d405e4133ff88dc"
+  },
+  "id": "j0OZk1rVuVU5Qo4Z",
+  "tags": []
+}

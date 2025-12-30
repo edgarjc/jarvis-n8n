@@ -1,0 +1,2885 @@
+{
+  "name": "Jarvis_Enhanced_v5",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        -464
+      ],
+      "id": "be6969cd-7367-4d21-8046-3557b3dfa3d0",
+      "name": "Telegram Trigger",
+      "webhookId": "516c71fb-bcd7-4c8d-a196-660964e9ab0b",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "slash-cmd-check",
+              "leftValue": "={{ /^\\/\\w+/.test($json.message?.text || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -672,
+        -464
+      ],
+      "id": "6eccdb28-b1a4-461a-9359-d5ad15b3d686",
+      "name": "Slash Command?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "voice-check",
+              "leftValue": "={{$json.message?.voice?.file_id || ''}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -448,
+        -352
+      ],
+      "id": "4c9b19fe-c28c-428c-b0ba-f2302f111ce5",
+      "name": "Voice or Text?"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -224,
+        -464
+      ],
+      "id": "eea5a4db-0e67-475d-9bed-70cd20cb8c7f",
+      "name": "Get Voice File",
+      "webhookId": "cd648782-14c1-459f-a776-634b529c9ac1",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        16,
+        -464
+      ],
+      "id": "3f5c2ab3-07ce-465c-8b32-668ce70b0591",
+      "name": "Transcribe",
+      "credentials": {
+        "openAiApi": {
+          "id": "zVkXEcc6tL0uj0v0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "content-voice",
+              "name": "content",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "source-voice",
+              "name": "source",
+              "value": "voice",
+              "type": "string"
+            },
+            {
+              "id": "when-voice",
+              "name": "when",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "chat-id-voice",
+              "name": "chatId",
+              "value": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        -464
+      ],
+      "id": "3a2dab6f-9c1a-444c-82f5-279d53adae73",
+      "name": "Set Voice Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "content-text",
+              "name": "content",
+              "value": "={{$json.message.text || $json.message.caption || ''}}",
+              "type": "string"
+            },
+            {
+              "id": "source-text",
+              "name": "source",
+              "value": "text",
+              "type": "string"
+            },
+            {
+              "id": "when-text",
+              "name": "when",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "chat-id-text",
+              "name": "chatId",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        -256
+      ],
+      "id": "bb87f2df-4e5b-4f11-8645-e13ecc805aee",
+      "name": "Set Text Fields"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        464,
+        -352
+      ],
+      "id": "fc044d73-14dc-4d2e-b1af-1727ceba4ac7",
+      "name": "Merge",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/databases/JARVIS_CONVERSATIONS_DB_ID/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"filter\": {\n    \"property\": \"Chat ID\",\n    \"number\": {\n      \"equals\": {{ $json.chatId }}\n    }\n  },\n  \"sorts\": [\n    {\n      \"timestamp\": \"created_time\",\n      \"direction\": \"descending\"\n    }\n  ],\n  \"page_size\": 10\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, -560],
+      "id": "fetch-recent-context",
+      "name": "Fetch Recent Context",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format recent conversation context for the LLM\nconst mergeData = $('Merge').item.json;\n\n// Handle HTTP Request response format: {results: [...]}\nconst httpResponse = $input.first()?.json || {};\nconst results = httpResponse.results || [];\n\n// Build context string from recent conversations\nlet contextString = '';\n\nif (results.length > 0) {\n  // Reverse to show oldest first (chronological order)\n  const chronological = results.slice().reverse();\n  \n  contextString = chronological.map(conv => {\n    const props = conv.properties || {};\n    const userMsg = props['User Message']?.rich_text?.[0]?.plain_text || '';\n    const intent = props['Intent']?.select?.name || '';\n    const subtype = props['Subtype']?.select?.name || '';\n    const response = props['Response Summary']?.rich_text?.[0]?.plain_text || '';\n    const referencedTitles = props['Referenced Titles']?.rich_text?.[0]?.plain_text || '';\n    const timestamp = props['Timestamp']?.date?.start || '';\n    \n    let entry = `[${timestamp}] User: \"${userMsg}\" → ${intent}/${subtype}`;\n    if (referencedTitles) {\n      entry += ` (items: ${referencedTitles})`;\n    }\n    if (response) {\n      entry += ` | Jarvis: ${response}`;\n    }\n    return entry;\n  }).join('\\n');\n}\n\n// Track recent item IDs and titles for reference resolution\nconst MAX_RECENT_ITEMS = 5;\nlet recentItemIds = [];\nlet recentItemTitles = [];\n\nresults.forEach(conv => {\n  const props = conv.properties || {};\n  const refIds = props['Referenced IDs']?.rich_text?.[0]?.plain_text || '';\n  const refTitles = props['Referenced Titles']?.rich_text?.[0]?.plain_text || '';\n  if (refIds && recentItemIds.length < MAX_RECENT_ITEMS) {\n    refIds.split(',').forEach(id => {\n      if (recentItemIds.length < MAX_RECENT_ITEMS && id.trim() && !recentItemIds.includes(id.trim())) {\n        recentItemIds.push(id.trim());\n      }\n    });\n  }\n  if (refTitles && recentItemTitles.length < MAX_RECENT_ITEMS) {\n    refTitles.split(',').forEach(title => {\n      if (recentItemTitles.length < MAX_RECENT_ITEMS && title.trim() && !recentItemTitles.includes(title.trim())) {\n        recentItemTitles.push(title.trim());\n      }\n    });\n  }\n});\n\n// Generate session ID (group messages within 30-min window)\nconst now = new Date();\nlet sessionId = '';\n\nif (results.length > 0 && results[0].properties) {\n  const lastTimestamp = results[0].properties['Timestamp']?.date?.start;\n  const lastSessionId = results[0].properties['Session ID']?.rich_text?.[0]?.plain_text;\n  \n  if (lastTimestamp && lastSessionId) {\n    const lastTime = new Date(lastTimestamp);\n    const diffMinutes = (now - lastTime) / (1000 * 60);\n    sessionId = diffMinutes < 30 ? lastSessionId : `session_${now.getTime()}`;\n  } else {\n    sessionId = `session_${now.getTime()}`;\n  }\n} else {\n  sessionId = `session_${now.getTime()}`;\n}\n\nreturn [{\n  json: {\n    content: mergeData.content,\n    source: mergeData.source,\n    when: mergeData.when,\n    chatId: mergeData.chatId,\n    conversationContext: contextString,\n    recentItemIds: recentItemIds.slice(0, 5),\n    recentItemTitles: recentItemTitles.slice(0, 5),\n    sessionId: sessionId,\n    hasContext: contextString.length > 0\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        -352
+      ],
+      "id": "format-context",
+      "name": "Format Context"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Classify the user's message intent. Current time: {{ new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }) }}\n\n## CONVERSATION CONTEXT:\n{{ $json.hasContext ? $json.conversationContext : 'No previous context' }}\n\n## RECENTLY DISCUSSED ITEMS:\n{{ $json.recentItemTitles.length > 0 ? $json.recentItemTitles.join(', ') : 'None' }}\n\nReturn ONLY valid JSON with this structure:\n{\n  \"intent\": \"query\" | \"command\" | \"capture\",\n  \"subtype\": \"<specific type>\",\n  \"confidence\": \"high\" | \"medium\" | \"low\",\n  \"resolvedReference\": \"<title of item being referenced, if applicable>\"\n}\n\n## CONTEXT RESOLUTION (CRITICAL):\nUse the conversation context to resolve ambiguous references:\n- \"that\" / \"it\" / \"the one\" → most recently discussed single item\n- \"those\" / \"both\" / \"them\" → items from last query result (usually 2)\n- \"the first one\" / \"the second one\" → position in last shown list\n- \"yesterday's task\" → search conversations from yesterday\n- \"the reminder\" / \"the task\" → most recent item of that type\n- \"what I just added\" → the item from the last capture\n\nIf context helps identify which item(s) the user means, include it in resolvedReference.\n\n## INTENT TYPES:\n\n### QUERY (asking for information)\nSubtypes:\n- \"list_today\" - What do I have today? Today's tasks? What's due today? (simple list)\n- \"list_all\" - Show all tasks, everything, all reminders\n- \"list_overdue\" - What's overdue? Late tasks?\n- \"list_upcoming\" - What's coming up? This week? Next few days?\n- \"list_priority\" - What's urgent? High priority items?\n- \"search\" - Find X, what did I note about X, anything about X?\n- \"list_by_tag\" - Show work tasks, personal items, [tag] tasks\n- \"stats\" - How many tasks? Summary? Progress?\n- \"advice\" - What SHOULD I work on? Help me prioritize. What's most important? Which task first? (needs AI reasoning)\n\nIMPORTANT: Distinguish between:\n- \"list_today\" = simple list request (\"what do I have today\", \"show today's tasks\")\n- \"advice\" = asking for prioritization/recommendation (\"what SHOULD I do\", \"what should I prioritize\", \"help me decide\", \"which one first\")\n\n### COMMAND (action on existing items)\nSubtypes:\n- \"complete\" - Done, finished, completed, mark as done, I did X\n- \"archive\" - Archive that, put away, hide it\n- \"snooze\" - Snooze, push to tomorrow, remind me later, reschedule to X\n- \"priority\" - Make urgent, high/low priority, this is important\n- \"edit\" - Change title to X, update the deadline, rename to X, add tag, remove tag\n- \"undo\" - Undo, bring back, nevermind, restore, unarchive, uncomplete\n\n### CAPTURE (new item to save)\nSubtypes:\n- \"reminder\" - Remind me to X, don't forget X\n- \"task\" - I need to X, TODO X, Add task X\n- \"idea\" - Idea: X, What if X, I'm thinking X\n- \"note\" - Note that X, Remember X, general information\n- \"meeting\" - Meeting with X, Call with X, 1:1 with X\n\n## DECISION RULES:\n1. If message references \"that\", \"those\", \"it\", \"both\", \"the task\", \"the reminder\" + action verb → COMMAND\n2. If message is a question about existing items → QUERY\n3. If message contains new information to store → CAPTURE\n4. Action verbs: done, complete, finish, delete, remove, snooze, push, change, update, archive, rename, edit → COMMAND\n5. Restore verbs: undo, bring back, restore, unarchive, uncomplete → COMMAND with subtype \"undo\"\n6. Question words without action: what, show, list, any, how many → QUERY\n7. \"Should\", \"prioritize\", \"focus on\", \"work on first\", \"most important\", \"help me decide\" → QUERY with subtype \"advice\"\n8. Default to CAPTURE if genuinely ambiguous\n\n## EXAMPLES WITH CONTEXT:\n- Context: User just asked \"show my tasks\" and saw \"Call mom, Buy groceries\"\n  User: \"done with the first one\" → {\"intent\": \"command\", \"subtype\": \"complete\", \"confidence\": \"high\", \"resolvedReference\": \"Call mom\"}\n- Context: User just captured \"Meeting with Katie at 3pm\"\n  User: \"make that high priority\" → {\"intent\": \"command\", \"subtype\": \"priority\", \"confidence\": \"high\", \"resolvedReference\": \"Meeting with Katie at 3pm\"}\n- Context: User asked about Sidecar tasks\n  User: \"snooze both to tomorrow\" → {\"intent\": \"command\", \"subtype\": \"snooze\", \"confidence\": \"high\", \"resolvedReference\": \"Sidecar tasks from query\"}\n\n## EXAMPLES:\n- \"I finished both\" → {\"intent\": \"command\", \"subtype\": \"complete\", \"confidence\": \"high\"}\n- \"What do I have today?\" → {\"intent\": \"query\", \"subtype\": \"list_today\", \"confidence\": \"high\"}\n- \"What should I work on today?\" → {\"intent\": \"query\", \"subtype\": \"advice\", \"confidence\": \"high\"}\n- \"Help me prioritize my tasks\" → {\"intent\": \"query\", \"subtype\": \"advice\", \"confidence\": \"high\"}\n- \"Which task should I do first?\" → {\"intent\": \"query\", \"subtype\": \"advice\", \"confidence\": \"high\"}\n- \"push that to tomorrow\" → {\"intent\": \"command\", \"subtype\": \"snooze\", \"confidence\": \"high\"}\n- \"Remind me to call mom at 5pm\" → {\"intent\": \"capture\", \"subtype\": \"reminder\", \"confidence\": \"high\"}\n- \"anything about Sidecar?\" → {\"intent\": \"query\", \"subtype\": \"search\", \"confidence\": \"high\"}\n- \"make it high priority\" → {\"intent\": \"command\", \"subtype\": \"priority\", \"confidence\": \"high\"}\n- \"rename that to 'Call client'\" → {\"intent\": \"command\", \"subtype\": \"edit\", \"confidence\": \"high\"}\n- \"change deadline to Friday\" → {\"intent\": \"command\", \"subtype\": \"edit\", \"confidence\": \"high\"}\n- \"undo that\" → {\"intent\": \"command\", \"subtype\": \"undo\", \"confidence\": \"high\"}\n- \"bring back the archived task\" → {\"intent\": \"command\", \"subtype\": \"undo\", \"confidence\": \"high\"}",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json.content }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        640,
+        -336
+      ],
+      "id": "da880eff-de3d-48d7-b42c-b3b01a53016f",
+      "name": "Detect Intent",
+      "credentials": {
+        "openAiApi": {
+          "id": "zVkXEcc6tL0uj0v0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract intent and pass through original data with context\nconst intentResult = $input.item.json.message?.content || $input.item.json;\nconst contextData = $('Format Context').item.json;\n\nreturn [{\n  json: {\n    content: contextData.content,\n    source: contextData.source,\n    when: contextData.when,\n    chatId: contextData.chatId,\n    intent: intentResult.intent || 'capture',\n    subtype: intentResult.subtype || 'note',\n    confidence: intentResult.confidence || 'low',\n    resolvedReference: intentResult.resolvedReference || '',\n    sessionId: contextData.sessionId,\n    recentItemIds: contextData.recentItemIds || [],\n    recentItemTitles: contextData.recentItemTitles || []\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -352
+      ],
+      "id": "bad75b75-13c4-488a-be02-4d8314701575",
+      "name": "Extract Intent"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "query",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "command",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "capture",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1136,
+        -352
+      ],
+      "id": "b38a0797-bdc7-4272-8830-a32cab436ede",
+      "name": "Route Intent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/databases/2d72ec63-f882-809a-85c5-d2f4927b3856/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"filter\": {\n    \"property\": \"Status\",\n    \"select\": {\n      \"equals\": \"pending\"\n    }\n  },\n  \"page_size\": 20\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        -656
+      ],
+      "id": "63b70de7-34ef-4b2b-bfe2-9d8970b09853",
+      "name": "Get Pending Items",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      },
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format query response - use AI only for advice queries\nconst results = $input.first().json.results || [];\nconst intent = $('Extract Intent').item.json;\n\n// Get today's date in EST\nconst now = new Date();\nconst estOptions = { timeZone: 'America/New_York' };\nconst todayEST = new Date(now.toLocaleString('en-US', estOptions));\nconst todayStr = todayEST.toISOString().split('T')[0];\n\n// Get dates for filtering\nconst weekFromNow = new Date(todayEST);\nweekFromNow.setDate(weekFromNow.getDate() + 7);\nconst weekStr = weekFromNow.toISOString().split('T')[0];\n\nlet items = results.map(item => {\n  const props = item.properties || {};\n  const titleProp = Object.values(props).find(p => p.type === 'title');\n  return {\n    title: titleProp?.title?.[0]?.plain_text || 'Untitled',\n    type: props['Note Type']?.select?.name || '',\n    priority: props.Priority?.select?.name || 'medium',\n    status: props.Status?.select?.name || 'pending',\n    reminderDate: props['Reminder Date']?.date?.start || '',\n    deadline: props.Deadline?.date?.start || '',\n    tags: (props.Tags?.multi_select || []).map(t => t.name),\n    summary: props.Summary?.rich_text?.[0]?.plain_text || '',\n    url: item.url\n  };\n});\n\nconst queryType = intent.subtype;\n\n// Check if this needs AI (advice/prioritization)\nconst needsAI = queryType === 'advice' || queryType === 'search';\n\n// For AI queries, pass all items without date filtering\nif (needsAI) {\n  const currentTime = now.toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'full', timeStyle: 'short' });\n  return {\n    json: {\n      needsAI: true,\n      userQuery: intent.content,\n      queryType: queryType,\n      currentTime: currentTime,\n      items: items,\n      itemsJson: JSON.stringify(items, null, 2),\n      itemCount: items.length,\n      chatId: intent.chatId\n    }\n  };\n}\n\n// For list queries, filter based on query type\nif (queryType === 'list_today') {\n  items = items.filter(item => {\n    const reminder = item.reminderDate?.split('T')[0];\n    const deadline = item.deadline?.split('T')[0];\n    return reminder === todayStr || deadline === todayStr || item.priority === 'high';\n  });\n} else if (queryType === 'list_overdue') {\n  items = items.filter(item => {\n    const deadline = item.deadline?.split('T')[0];\n    return deadline && deadline < todayStr;\n  });\n} else if (queryType === 'list_upcoming') {\n  items = items.filter(item => {\n    const reminder = item.reminderDate?.split('T')[0];\n    const deadline = item.deadline?.split('T')[0];\n    return (reminder && reminder >= todayStr && reminder <= weekStr) ||\n           (deadline && deadline >= todayStr && deadline <= weekStr);\n  });\n} else if (queryType === 'list_priority') {\n  items = items.filter(item => item.priority === 'high');\n}\n\n// Format date helper\nconst formatDate = (dateStr) => {\n  if (!dateStr) return '';\n  const d = new Date(dateStr);\n  return d.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' }) +\n    (dateStr.includes('T') ? ' at ' + d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) : '');\n};\n\n// Type emoji map\nconst typeEmoji = { reminder: '🔔', task: '✅', idea: '💡', 'meeting-notes': '📝', journal: '📓', reference: '📚', question: '❓' };\n\n// Generate response message\nlet message = '';\n\nif (items.length === 0) {\n  const emptyMessages = {\n    list_today: '📭 Nothing on your plate today! Enjoy your free time.',\n    list_overdue: '✨ All caught up! No overdue items.',\n    list_upcoming: '📅 Your week ahead is clear!',\n    list_priority: '😌 No high priority items right now.',\n    list_all: '📭 Your list is empty. Add something!',\n    search: '🔍 No matching items found.',\n    stats: '📊 No items to report on.'\n  };\n  message = emptyMessages[queryType] || '📭 Nothing found.';\n} else {\n  const headers = {\n    list_today: '📋 Today\\'s Tasks',\n    list_overdue: '⚠️ Overdue Items',\n    list_upcoming: '📅 Upcoming (Next 7 Days)',\n    list_priority: '⚡ High Priority',\n    list_all: '📋 All Items',\n    search: '🔍 Search Results'\n  };\n  message = (headers[queryType] || '📋 Items') + '\\n\\n';\n  \n  items.forEach(item => {\n    const emoji = typeEmoji[item.type] || '•';\n    const priority = item.priority === 'high' ? ' ⚡' : '';\n    message += `${emoji} ${item.title}${priority}\\n`;\n    if (item.reminderDate) message += `   📅 ${formatDate(item.reminderDate)}\\n`;\n    if (item.deadline) message += `   ⏰ Due: ${formatDate(item.deadline)}\\n`;\n    if (item.summary) message += `   ${item.summary.substring(0, 50)}${item.summary.length > 50 ? '...' : ''}\\n`;\n    message += '\\n';\n  });\n  \n  message = message.trim();\n}\n\nreturn {\n  json: {\n    needsAI: false,\n    responseText: message,\n    itemCount: items.length,\n    chatId: intent.chatId\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, -656],
+      "id": "prepare-query-data",
+      "name": "Prepare Query Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "needs-ai-check",
+              "leftValue": "={{ $json.needsAI }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1608, -656],
+      "id": "needs-ai-router",
+      "name": "Needs AI?"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are Jarvis, a smart personal assistant. The user is asking for prioritization advice or searching their tasks.\n\nUser asked: {{ $json.userQuery }}\nQuery type: {{ $json.queryType }}\nCurrent time: {{ $json.currentTime }}\n\nAll pending items:\n{{ $json.itemsJson }}\n\nFor ADVICE queries:\n- Analyze their tasks considering deadlines, priorities, and context\n- Give a clear recommendation on what to focus on first and why\n- Be concise but helpful - 2-3 sentences max\n- Consider urgency (deadlines), importance (priority), and quick wins\n\nFor SEARCH queries:\n- Find items matching what they're looking for\n- Show relevant matches with key details\n\nIf no items exist, give a friendly empty message.\n\nFormat for Telegram (use emojis, keep concise). Return ONLY the message text.",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json.userQuery }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1776,
+        -720
+      ],
+      "id": "fad082da-8720-41df-b055-5aac98a9a072",
+      "name": "AI Advice",
+      "credentials": {
+        "openAiApi": {
+          "id": "zVkXEcc6tL0uj0v0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Prepare Query Data').item.json.chatId }}",
+        "text": "={{ $json.message.content }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1968, -720],
+      "id": "send-ai-response",
+      "name": "Send AI Response",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.responseText }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1808,
+        -656
+      ],
+      "id": "9ab8e8c1-ede2-4837-ab44-7b785686751e",
+      "name": "Send Query Response",
+      "webhookId": "836f515c-0f95-40e6-aa95-a565c104fde4",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-results",
+              "leftValue": "={{ ($json.results || []).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1472, -656],
+      "id": "check-query-results",
+      "name": "Has Results?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Intent').item.json.chatId }}",
+        "text": "📭 Nothing on your plate right now!\n\nYour task list is clear. Enjoy the moment or add something new.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1696, -560],
+      "id": "send-empty-response",
+      "name": "Send Empty Response",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "2d72ec63-f882-809a-85c5-d2f4927b3856",
+          "mode": "list"
+        },
+        "limit": 15,
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Status|select",
+              "condition": "equals",
+              "selectValue": "pending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1360,
+        -352
+      ],
+      "id": "8ca6de0b-bac9-4a64-a4ed-c09ce4b6a4f5",
+      "name": "Get Items for Command",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are Jarvis executing a command on the user's items.\n\nUser's command: {{ $('Extract Intent').item.json.content }}\nCommand type: {{ $('Extract Intent').item.json.subtype }}\nCurrent time: {{ new Date().toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'full', timeStyle: 'short' }) }}\n\nAvailable items (most recent first):\n{{ JSON.stringify($input.all().map((item, idx) => ({\n  index: idx,\n  id: item.json.id,\n  title: item.json.properties?.Name?.title?.[0]?.plain_text || 'Untitled',\n  type: item.json.properties?.['Note Type']?.select?.name || '',\n  priority: item.json.properties?.Priority?.select?.name || 'medium',\n  tags: (item.json.properties?.Tags?.multi_select || []).map(t => t.name),\n  reminderDate: item.json.properties?.['Reminder Date']?.date?.start || '',\n  deadline: item.json.properties?.Deadline?.date?.start || ''\n})), null, 2) }}\n\n## COMMAND TYPES & ACTIONS:\n\n### complete\nUser wants to mark items as done.\nIdentify which items based on: \"both\", \"those\", \"that\", \"all\", specific titles, \"the reminder\", \"the task\"\n\n### archive  \nUser wants to archive/hide items.\n\n### snooze\nUser wants to reschedule. Parse the new time:\n- \"tomorrow\" → next day 9am\n- \"in 2 hours\" → calculate from now\n- \"next Monday\" → calculate date\n- \"later\" → +3 hours\n- \"tonight\" → 8pm today\n- \"next week\" → +7 days\n\n### priority\nUser wants to change priority. Detect new level:\n- \"urgent\", \"important\", \"high priority\" → high\n- \"normal\" → medium  \n- \"low priority\", \"not urgent\" → low\n\n### edit\nUser wants to change an item's properties. Detect what to change:\n- \"rename to X\", \"change title to X\" → editField: \"title\", newValue: \"X\"\n- \"change deadline to Friday\", \"due by Monday\" → editField: \"deadline\", newValue: ISO date\n- \"add tag work\", \"tag it as urgent\" → editField: \"tags\", newValue: \"work\", additive: true\n- \"remove tag personal\" → editField: \"tags\", newValue: \"personal\", additive: false\n- \"change type to task\" → editField: \"noteType\", newValue: \"task\"\n\n### undo\nUser wants to restore recently completed/archived items.\n- \"undo\", \"bring back\", \"restore\", \"unarchive\" → Find recently changed items\n- Set undoAction to \"restore_status\" to change status back to pending\n\n## CONTEXT CLUES:\n- \"both\" / \"those\" / \"them\" = the most recent 2 items (likely just shown)\n- \"that\" / \"it\" / \"the one\" = the most recent 1 item\n- \"all\" / \"everything\" = all listed items\n- \"the reminder about X\" = match by title containing X\n- \"the first one\" / \"the second one\" = by position in list\n\n## RETURN FORMAT:\nReturn ONLY valid JSON:\n{\n  \"action\": \"complete\" | \"archive\" | \"snooze\" | \"priority\" | \"edit\" | \"undo\",\n  \"targetIds\": [\"page-id-1\", \"page-id-2\"],\n  \"targetTitles\": [\"Title 1\", \"Title 2\"],\n  \"newValue\": \"value if applicable\",\n  \"editField\": \"title\" | \"deadline\" | \"tags\" | \"noteType\" | \"priority\" (only for edit action),\n  \"additive\": true | false (only for tag edits - true to add, false to remove),\n  \"response\": \"Natural confirmation message for Telegram\",\n  \"needsClarification\": false\n}\n\nIf unclear which items, set needsClarification: true and ask in response field.\nIf action is snooze, newValue should be ISO date string.\nIf action is priority, newValue should be \"high\", \"medium\", or \"low\".\nIf action is edit with editField \"deadline\", newValue should be ISO date string.\nIf action is undo, targetIds can be empty (will find recent items automatically).",
+              "role": "system"
+            },
+            {
+              "content": "Execute the command"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1584,
+        -352
+      ],
+      "id": "5ddda1f6-ad75-47cb-ab96-c2ead7272f04",
+      "name": "Parse Command",
+      "credentials": {
+        "openAiApi": {
+          "id": "zVkXEcc6tL0uj0v0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract command parsing result\nconst result = $input.item.json.message?.content || $input.item.json;\nconst chatId = $('Extract Intent').item.json.chatId;\n\nreturn [{\n  json: {\n    action: result.action,\n    targetIds: result.targetIds || [],\n    targetTitles: result.targetTitles || [],\n    newValue: result.newValue || '',\n    editField: result.editField || '',\n    additive: result.additive !== false,\n    response: result.response,\n    needsClarification: result.needsClarification || false,\n    chatId: chatId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        -352
+      ],
+      "id": "95438adc-2be2-4cb9-a1b2-078f25e584be",
+      "name": "Extract Command"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "needs-clarification",
+              "leftValue": "={{ $json.needsClarification }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            },
+            {
+              "id": "has-targets-or-undo",
+              "leftValue": "={{ $json.targetIds.length > 0 || $json.action === 'undo' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2032,
+        -352
+      ],
+      "id": "bd3db820-9433-4e6d-baaa-1e490ffc4af7",
+      "name": "Can Execute?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.response }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2256,
+        -160
+      ],
+      "id": "8e082f0d-504a-40f4-9b57-9f861a3ddb4b",
+      "name": "Ask Clarification",
+      "webhookId": "46a3a4db-fb96-4952-a306-8e037ceffa6e",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "complete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "archive",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "snooze",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "priority",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "edit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "undo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2256,
+        -448
+      ],
+      "id": "4dac58bb-cfd3-490f-b0b1-8c74d771fd4b",
+      "name": "Route Action"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split into individual updates for complete action\nconst data = $input.item.json;\nreturn data.targetIds.map((id, idx) => ({\n  json: {\n    pageId: id,\n    title: data.targetTitles[idx] || 'Item',\n    action: 'complete',\n    response: data.response,\n    chatId: data.chatId\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        -720
+      ],
+      "id": "2aa8b42b-6ccb-4341-bef7-1a913d3d6f50",
+      "name": "Split Complete"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Status|select",
+              "selectValue": "completed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2704,
+        -720
+      ],
+      "id": "e3cb9bd6-b2a4-4fc0-8263-0572f5a23687",
+      "name": "Mark Complete",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split into individual updates for archive action\nconst data = $input.item.json;\nreturn data.targetIds.map((id, idx) => ({\n  json: {\n    pageId: id,\n    title: data.targetTitles[idx] || 'Item',\n    action: 'archive',\n    response: data.response,\n    chatId: data.chatId\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        -576
+      ],
+      "id": "97859070-6112-46e5-bef8-5a2d6d42b2d6",
+      "name": "Split Archive"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Status|select",
+              "selectValue": "archived"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2704,
+        -576
+      ],
+      "id": "6f78eaf4-8549-4ee7-8392-b93cb262df04",
+      "name": "Archive Item",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split into individual updates for snooze action\nconst data = $input.item.json;\nreturn data.targetIds.map((id, idx) => ({\n  json: {\n    pageId: id,\n    title: data.targetTitles[idx] || 'Item',\n    action: 'snooze',\n    newDate: data.newValue,\n    response: data.response,\n    chatId: data.chatId\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        -432
+      ],
+      "id": "34737795-4856-4752-be17-2bdfb7ba271c",
+      "name": "Split Snooze"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Reminder Date|date",
+              "date": "={{ $json.newDate }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2704,
+        -432
+      ],
+      "id": "abdb1211-baf3-4288-99f0-e4fe56348c23",
+      "name": "Update Reminder Date",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split into individual updates for priority action\nconst data = $input.item.json;\nreturn data.targetIds.map((id, idx) => ({\n  json: {\n    pageId: id,\n    title: data.targetTitles[idx] || 'Item',\n    action: 'priority',\n    newPriority: data.newValue,\n    response: data.response,\n    chatId: data.chatId\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        -288
+      ],
+      "id": "a1a7c07c-120b-478f-b550-3e4686ac681c",
+      "name": "Split Priority"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Priority|select",
+              "selectValue": "={{ $json.newPriority }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2704,
+        -288
+      ],
+      "id": "82b908c8-8a48-475f-9fdf-0749f00a5288",
+      "name": "Update Priority",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split into individual updates for edit action\nconst data = $input.item.json;\nreturn data.targetIds.map((id, idx) => ({\n  json: {\n    pageId: id,\n    title: data.targetTitles[idx] || 'Item',\n    action: 'edit',\n    editField: data.editField,\n    newValue: data.newValue,\n    additive: data.additive,\n    response: data.response,\n    chatId: data.chatId\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        -144
+      ],
+      "id": "split-edit-node",
+      "name": "Split Edit"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dynamic edit based on editField\nconst item = $input.item.json;\nconst pageId = item.pageId;\nconst editField = item.editField;\nconst newValue = item.newValue;\nconst additive = item.additive;\n\n// Build the property update based on field type\nlet propertyUpdate = {};\n\nswitch (editField) {\n  case 'title':\n    propertyUpdate = {\n      key: 'Name|title',\n      title: newValue\n    };\n    break;\n  case 'deadline':\n    propertyUpdate = {\n      key: 'Deadline|date',\n      date: newValue\n    };\n    break;\n  case 'noteType':\n    propertyUpdate = {\n      key: 'Note Type|select',\n      selectValue: newValue\n    };\n    break;\n  case 'priority':\n    propertyUpdate = {\n      key: 'Priority|select',\n      selectValue: newValue\n    };\n    break;\n  case 'tags':\n    // For tags, we need to handle add/remove\n    // This will be handled by the next node\n    propertyUpdate = {\n      key: 'Tags|multi_select',\n      tagValue: newValue,\n      additive: additive\n    };\n    break;\n  default:\n    propertyUpdate = null;\n}\n\nreturn [{\n  json: {\n    pageId: pageId,\n    editField: editField,\n    propertyUpdate: propertyUpdate,\n    newValue: newValue,\n    additive: additive,\n    title: item.title,\n    action: 'edit',\n    response: item.response,\n    chatId: item.chatId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        -144
+      ],
+      "id": "prepare-edit-node",
+      "name": "Prepare Edit"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.editField }}",
+                    "rightValue": "title",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.editField }}",
+                    "rightValue": "deadline",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.editField }}",
+                    "rightValue": "noteType",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.editField }}",
+                    "rightValue": "priority",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.editField }}",
+                    "rightValue": "tags",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2928,
+        -144
+      ],
+      "id": "route-edit-field",
+      "name": "Route Edit Field"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "title": "={{ $json.newValue }}",
+        "propertiesUi": {
+          "propertyValues": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        3152,
+        -288
+      ],
+      "id": "update-title-node",
+      "name": "Update Title",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Deadline|date",
+              "date": "={{ $json.newValue }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        3152,
+        -144
+      ],
+      "id": "update-deadline-node",
+      "name": "Update Deadline",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Note Type|select",
+              "selectValue": "={{ $json.newValue }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        3152,
+        0
+      ],
+      "id": "update-notetype-node",
+      "name": "Update Note Type",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Priority|select",
+              "selectValue": "={{ $json.newValue }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        3152,
+        144
+      ],
+      "id": "update-priority-edit-node",
+      "name": "Update Priority (Edit)",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Tags|multi_select",
+              "multiSelectValue": "={{ [$json.newValue] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        3152,
+        288
+      ],
+      "id": "update-tags-node",
+      "name": "Update Tags",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "2d72ec63-f882-809a-85c5-d2f4927b3856",
+          "mode": "list"
+        },
+        "limit": 5,
+        "filterType": "manual",
+        "matchType": "anyFilter",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Status|select",
+              "condition": "equals",
+              "selectValue": "completed"
+            },
+            {
+              "key": "Status|select",
+              "condition": "equals",
+              "selectValue": "archived"
+            }
+          ]
+        },
+        "options": {
+          "sort": {
+            "sortValue": [
+              {
+                "timestamp": "last_edited_time",
+                "direction": "descending"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2480,
+        0
+      ],
+      "id": "get-recent-completed",
+      "name": "Get Recent Completed/Archived",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process undo - restore most recently completed/archived items\nconst items = $input.all();\nconst commandData = $('Extract Command').item.json;\nconst chatId = commandData.chatId;\n\nif (items.length === 0) {\n  return [{\n    json: {\n      pageId: null,\n      action: 'undo',\n      response: \"No recently completed or archived items to restore.\",\n      chatId: chatId,\n      noItems: true\n    }\n  }];\n}\n\n// Get the most recent item (or first 2 if user said 'both')\nconst userCommand = commandData.content?.toLowerCase() || '';\nconst restoreCount = userCommand.includes('both') || userCommand.includes('all') ? Math.min(items.length, 3) : 1;\n\nconst toRestore = items.slice(0, restoreCount);\n\nreturn toRestore.map(item => {\n  const title = item.json.properties?.Name?.title?.[0]?.plain_text || 'Item';\n  return {\n    json: {\n      pageId: item.json.id,\n      title: title,\n      action: 'undo',\n      response: `Restored \"${title}\" back to pending.`,\n      chatId: chatId\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        0
+      ],
+      "id": "process-undo-node",
+      "name": "Process Undo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-page-id",
+              "leftValue": "={{ $json.pageId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2928,
+        0
+      ],
+      "id": "undo-has-items",
+      "name": "Has Items to Undo?"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Status|select",
+              "selectValue": "pending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        3152,
+        -48
+      ],
+      "id": "restore-to-pending",
+      "name": "Restore to Pending",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3376,
+        -288
+      ],
+      "id": "538475e2-4298-4a95-823d-f5a81a87c413",
+      "name": "Merge Actions",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate and send final response\nconst allResults = $input.all();\nconst firstItem = allResults[0]?.json || {};\n\n// Get response from the original command data\nlet response = firstItem.response || 'Done!';\nlet chatId = firstItem.chatId;\n\n// Try to get from earlier in the chain if not present\nif (!chatId) {\n  try {\n    chatId = $('Extract Command').item.json.chatId;\n    response = $('Extract Command').item.json.response;\n  } catch(e) {}\n}\n\nconst count = allResults.length;\nconst emoji = firstItem.action === 'complete' ? '✅' : \n              firstItem.action === 'archive' ? '📦' :\n              firstItem.action === 'snooze' ? '⏰' :\n              firstItem.action === 'priority' ? '🔺' :\n              firstItem.action === 'edit' ? '✏️' :\n              firstItem.action === 'undo' ? '↩️' : '✓';\n\nreturn [{\n  json: {\n    message: `${emoji} ${response}`,\n    chatId: chatId,\n    count: count\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        -288
+      ],
+      "id": "b2881a89-2d27-4631-99d5-25650777cb2d",
+      "name": "Format Response"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3824,
+        -288
+      ],
+      "id": "906d1bba-5f8f-47d1-b621-7805a565103e",
+      "name": "Send Action Response",
+      "webhookId": "dca2726c-e525-43c5-b489-358ae6346f01",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are Jarvis, an intelligent personal assistant analyzing notes, tasks, ideas, and reminders.\n\nCurrent context:\n- Current date/time: {{ new Date().toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'full', timeStyle: 'short' }) }}\n- Time zone: America/New_York\n- Capture type hint: {{ $json.subtype }}\n\nYour task: Extract structured information and provide a helpful, contextual response.\n\nReturn ONLY valid JSON with this exact structure:\n{\n  \"title\": \"\",\n  \"tldr\": \"\",\n  \"tags\": [],\n  \"actions\": [],\n  \"response\": \"\",\n  \"noteType\": \"\",\n  \"priority\": \"\",\n  \"reminderDate\": \"\",\n  \"deadline\": \"\",\n  \"peopleCompanies\": []\n}\n\nField specifications:\n\n• title (string, ≤10 words) - Concise, descriptive title using active voice\n\n• tldr (string, 50-90 words) - Comprehensive summary with specific details\n\n• tags (array, 3-6 items) - kebab-case tags mixing general and specific\n\n• actions (array) - Specific next steps with action verbs, empty [] if none\n\n• response (string, 2-3 sentences) - Natural acknowledgment referencing specific details\n  Examples:\n  * \"Got it! I'll remind you about the dentist at 2pm Tuesday.\"\n  * \"Captured your Sidecar feature idea. Tagged as high-priority product work.\"\n  * \"Noted the meeting feedback. Good action items on the onboarding flow.\"\n\n• noteType (string) - One of: \"reminder\", \"task\", \"idea\", \"meeting-notes\", \"journal\", \"reference\", \"question\"\n  Use the subtype hint but verify against content.\n\n• priority (string) - \"high\", \"medium\", or \"low\"\n  - High: urgent, time-sensitive, explicitly important, uses !high or similar\n  - Medium: should be done but not urgent\n  - Low: nice-to-have, reference material\n\n• reminderDate (ISO 8601 or empty) - ONLY for reminders with specific time\n  Parse intelligently: \"tomorrow 3pm\", \"next Monday\", \"in 2 hours\"\n\n• deadline (ISO 8601 or empty) - Due date if mentioned (different from reminder)\n\n• peopleCompanies (array) - Names of people, companies, orgs mentioned\n\nQUICK SYNTAX SUPPORT:\n- \"!high\" or \"!urgent\" at start → high priority\n- \"!low\" at start → low priority  \n- \"by Friday\" or \"due Monday\" → extract deadline\n- \"@Katie\" or \"with Katie\" → add to peopleCompanies",
+              "role": "system"
+            },
+            {
+              "content": "=Source: {{$json.source}}\nCaptured at: {{$json.when}}\n\nContent:\n{{$json.content}}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1360,
+        -64
+      ],
+      "id": "66c28fa7-4ae7-4256-9b5b-f42c0a871dd5",
+      "name": "Process Capture",
+      "credentials": {
+        "openAiApi": {
+          "id": "zVkXEcc6tL0uj0v0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "2d72ec63-f882-809a-85c5-d2f4927b3856",
+          "mode": "list",
+          "cachedResultName": "Jarvis"
+        },
+        "title": "={{ $json.message.content.title || 'Untitled Note' }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Source|select",
+              "selectValue": "={{ $('Merge').item.json.source }}"
+            },
+            {
+              "key": "When|date",
+              "date": "={{ $('Merge').item.json.when }}"
+            },
+            {
+              "key": "Tags|multi_select",
+              "multiSelectValue": "={{ $json.message.content.tags }}"
+            },
+            {
+              "key": "Actions|multi_select",
+              "multiSelectValue": "={{ $json.message.content.actions }}"
+            },
+            {
+              "key": "Summary|rich_text",
+              "textContent": "={{ $json.message.content.tldr }}"
+            },
+            {
+              "key": "Note Type|select",
+              "selectValue": "={{ $json.message.content.noteType }}"
+            },
+            {
+              "key": "Priority|select",
+              "selectValue": "={{ $json.message.content.priority }}"
+            },
+            {
+              "key": "Status|select",
+              "selectValue": "pending"
+            },
+            {
+              "key": "Reminder Date|date",
+              "date": "={{ $json.message.content.reminderDate || '' }}"
+            },
+            {
+              "key": "Deadline|date",
+              "date": "={{ $json.message.content.deadline || '' }}"
+            },
+            {
+              "key": "People/Companies|multi_select",
+              "multiSelectValue": "={{ $json.message.content.peopleCompanies }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1584,
+        -64
+      ],
+      "id": "37f51fc4-f9c6-4c8d-aca6-74b79b1e0e02",
+      "name": "Create in Notion",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format capture response for Telegram\nconst noteData = $input.item.json;\nconst aiData = $('Process Capture').item.json.message.content;\nconst chatId = $('Extract Intent').item.json.chatId;\n\nconst formattedTags = (aiData.tags || [])\n  .slice(0, 3)\n  .map(tag => '#' + tag.replace(/-/g, ''))\n  .join(' ');\n\nconst priorityEmoji = aiData.priority === 'high' ? '⚡ ' : '';\nconst typeEmoji = aiData.noteType === 'reminder' ? '🔔' :\n                  aiData.noteType === 'task' ? '✅' :\n                  aiData.noteType === 'idea' ? '💡' :\n                  aiData.noteType === 'meeting-notes' ? '📝' : '📋';\n\nconst message = `${aiData.response}\\n\\n${priorityEmoji}${typeEmoji} ${aiData.title}\\n${formattedTags}\\n\\nView in Notion: ${noteData.url}`;\n\nreturn [{ json: { message, chatId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        -64
+      ],
+      "id": "6688db8a-a15a-4e4f-854d-9a4cd89ef267",
+      "name": "Format Capture"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2032,
+        -64
+      ],
+      "id": "157cb675-4d03-42bb-b3c1-6447e042e395",
+      "name": "Send Capture Response",
+      "webhookId": "6fccb9d5-7380-4507-bd95-9451cbd1758c",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle /save command - extract page ID\nconst text = $input.item.json.message?.text || '';\nconst match = text.match(/^\\/save(?:\\s+([a-f0-9-]+))?/);\n\nreturn {\n  command: 'save',\n  pageId: match?.[1] || null,\n  originalText: text,\n  chatId: $input.item.json.message.chat.id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        -656
+      ],
+      "id": "7ab5fd31-43ce-470c-a0c0-d106abef0354",
+      "name": "Parse Slash Cmd"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages/{{ $json.pageId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -224,
+        -656
+      ],
+      "id": "f2b15d1f-b93b-4088-9c01-8ac4031fbb0c",
+      "name": "Fetch Notion Page",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Slash Cmd').item.json.chatId }}",
+        "text": "=✅ Page saved to knowledge base!",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -656
+      ],
+      "id": "421bc7b4-400b-4aab-a731-58ab54689c5c",
+      "name": "Confirm Save",
+      "webhookId": "466b46ec-55a7-4399-ae86-f2c6b7456fd8",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"parent\": { \"database_id\": \"JARVIS_CONVERSATIONS_DB_ID\" },\n  \"properties\": {\n    \"Message ID\": { \"title\": [{ \"text\": { \"content\": \"msg_{{ Date.now() }}\" } }] },\n    \"Chat ID\": { \"number\": {{ $('Extract Intent').item.json.chatId }} },\n    \"User Message\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ $('Extract Intent').item.json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, ' ') }}\" } }] },\n    \"Intent\": { \"select\": { \"name\": \"{{ $('Extract Intent').item.json.intent }}\" } },\n    \"Subtype\": { \"select\": { \"name\": \"{{ $('Extract Intent').item.json.subtype }}\" } },\n    \"Response Summary\": { \"rich_text\": [{ \"text\": { \"content\": \"Showed query results\" } }] },\n    \"Timestamp\": { \"date\": { \"start\": \"{{ new Date().toISOString() }}\" } },\n    \"Session ID\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ $('Extract Intent').item.json.sessionId }}\" } }] }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2032, -656],
+      "id": "store-conv-query",
+      "name": "Store Conversation (Query)",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"parent\": { \"database_id\": \"JARVIS_CONVERSATIONS_DB_ID\" },\n  \"properties\": {\n    \"Message ID\": { \"title\": [{ \"text\": { \"content\": \"msg_{{ Date.now() }}\" } }] },\n    \"Chat ID\": { \"number\": {{ $('Extract Intent').item.json.chatId }} },\n    \"User Message\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ $('Extract Intent').item.json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, ' ') }}\" } }] },\n    \"Intent\": { \"select\": { \"name\": \"capture\" } },\n    \"Subtype\": { \"select\": { \"name\": \"{{ $('Extract Intent').item.json.subtype }}\" } },\n    \"Response Summary\": { \"rich_text\": [{ \"text\": { \"content\": \"Captured: {{ ($('Process Capture').item.json.message?.content?.title || 'item').replace(/\"/g, '\\\\\"') }}\" } }] },\n    \"Referenced IDs\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ $('Create in Notion').item.json.id }}\" } }] },\n    \"Referenced Titles\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ ($('Process Capture').item.json.message?.content?.title || '').replace(/\"/g, '\\\\\"') }}\" } }] },\n    \"Timestamp\": { \"date\": { \"start\": \"{{ new Date().toISOString() }}\" } },\n    \"Session ID\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ $('Extract Intent').item.json.sessionId }}\" } }] }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2256, -64],
+      "id": "store-conv-capture",
+      "name": "Store Conversation (Capture)",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"parent\": { \"database_id\": \"JARVIS_CONVERSATIONS_DB_ID\" },\n  \"properties\": {\n    \"Message ID\": { \"title\": [{ \"text\": { \"content\": \"msg_{{ Date.now() }}\" } }] },\n    \"Chat ID\": { \"number\": {{ $('Extract Intent').item.json.chatId }} },\n    \"User Message\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ $('Extract Intent').item.json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, ' ') }}\" } }] },\n    \"Intent\": { \"select\": { \"name\": \"command\" } },\n    \"Subtype\": { \"select\": { \"name\": \"{{ $('Extract Command').item.json.action }}\" } },\n    \"Response Summary\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ ($('Extract Command').item.json.response || '').replace(/\"/g, '\\\\\"').substring(0, 200) }}\" } }] },\n    \"Referenced IDs\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ ($('Extract Command').item.json.targetIds || []).join(',') }}\" } }] },\n    \"Referenced Titles\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ ($('Extract Command').item.json.targetTitles || []).join(',').replace(/\"/g, '\\\\\"') }}\" } }] },\n    \"Timestamp\": { \"date\": { \"start\": \"{{ new Date().toISOString() }}\" } },\n    \"Session ID\": { \"rich_text\": [{ \"text\": { \"content\": \"{{ $('Extract Intent').item.json.sessionId }}\" } }] }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4048, -288],
+      "id": "store-conv-action",
+      "name": "Store Conversation (Action)",
+      "credentials": {
+        "notionApi": {
+          "id": "LJk4uPh956RY2pns",
+          "name": "Notion account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the slash command from the message\nconst text = $input.item.json.message?.text || '';\nconst match = text.match(/^\\/([a-z]+)/);\nconst command = match ? match[1].toLowerCase() : '';\n\n// Define which commands are templates\nconst templateCommands = ['standup', 'idea', 'metrics', 'customer', 'decision', 'win', 'learn', 'competitor', 'reflect', 'braindump', 'gratitude', 'mood', 'workout', 'meal', 'sleep', 'goal', 'expense'];\n\n// Quick action commands that trigger queries\nconst quickActions = ['today', 'week', 'overdue', 'high'];\n\nreturn {\n  command: command,\n  isTemplate: templateCommands.includes(command),\n  isSave: command === 'save',\n  isQuickAction: quickActions.includes(command),\n  chatId: $input.item.json.message.chat.id,\n  originalText: text,\n  // Transform quick actions to natural language for intent detection\n  transformedText: command === 'today' ? \"What's on my plate today?\" :\n                   command === 'week' ? \"Show me everything due this week\" :\n                   command === 'overdue' ? \"What tasks are overdue?\" :\n                   command === 'high' ? \"Show my high priority items\" : text\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        -656
+      ],
+      "id": "extract-slash-command",
+      "name": "Extract Slash Command"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.isSave }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "save"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.isTemplate }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "template"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.isQuickAction }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "quickAction"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -336,
+        -656
+      ],
+      "id": "route-slash-command",
+      "name": "Route Slash Command"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Template definitions for entrepreneurs\nconst templates = {\n  standup: {\n    emoji: '🌅',\n    title: 'Daily Standup',\n    noteType: 'journal',\n    prompt: `🌅 *Daily Standup*\n\nReply with your update in this format:\n\n*Yesterday:* What did you accomplish?\n*Today:* What will you focus on?\n*Blockers:* Any obstacles in your way?\n\n_Example:_\nYesterday: Shipped the new dashboard\nToday: User interviews + fix auth bug\nBlockers: Waiting on API keys from vendor`\n  },\n  idea: {\n    emoji: '💡',\n    title: 'Idea Capture',\n    noteType: 'idea',\n    prompt: `💡 *Idea Capture*\n\nReply with your idea in this format:\n\n*Problem:* What problem does this solve?\n*Solution:* Your proposed solution\n*Target User:* Who is this for?\n*Why Now:* Why is the timing right?\n\n_Example:_\nProblem: Creators can't track cross-platform analytics\nSolution: Unified dashboard with AI insights\nTarget User: YouTubers with 10k-100k subs\nWhy Now: Creator economy is booming`\n  },\n  metrics: {\n    emoji: '📊',\n    title: 'Metrics Update',\n    noteType: 'reference',\n    prompt: `📊 *Metrics Update*\n\nReply with your key numbers:\n\n*Revenue:* MRR or sales figure\n*Users:* Active users or signups\n*Conversion:* Key conversion rate\n*Custom:* Any other important metric\n\n_Example:_\nRevenue: $4,200 MRR (+12% WoW)\nUsers: 847 active, 23 new signups\nConversion: Trial→Paid at 18%\nCustom: NPS score 72`\n  },\n  customer: {\n    emoji: '👤',\n    title: 'Customer Feedback',\n    noteType: 'meeting-notes',\n    prompt: `👤 *Customer Feedback*\n\nReply with the feedback:\n\n*Who:* Customer name/type\n*Feedback:* What did they say?\n*Sentiment:* Positive/Neutral/Negative\n*Action:* What should we do?\n\n_Example:_\nWho: Sarah, pro tier user\nFeedback: Loves the dashboard but wants CSV export\nSentiment: Positive\nAction: Add to feature backlog, prioritize for Q1`\n  },\n  decision: {\n    emoji: '⚖️',\n    title: 'Decision Log',\n    noteType: 'reference',\n    prompt: `⚖️ *Decision Log*\n\nDocument your decision:\n\n*Decision:* What did you decide?\n*Options:* What alternatives did you consider?\n*Reasoning:* Why this choice?\n*Reversible:* Easy to change later? (Yes/No)\n\n_Example:_\nDecision: Use Stripe over Paddle for payments\nOptions: Stripe, Paddle, LemonSqueezy\nReasoning: Better API, more payment methods, team familiarity\nReversible: No - significant migration effort`\n  },\n  win: {\n    emoji: '🏆',\n    title: 'Win!',\n    noteType: 'journal',\n    prompt: `🏆 *Celebrate a Win!*\n\nShare what went well:\n\n*What:* What happened?\n*Impact:* Why does it matter?\n*Who:* Who helped make it happen?\n\n_Example:_\nWhat: Landed first enterprise customer!\nImpact: $2k/mo ARR + case study opportunity\nWho: Thanks to warm intro from Alex`\n  },\n  learn: {\n    emoji: '📚',\n    title: 'Learning',\n    noteType: 'reference',\n    prompt: `📚 *Learning Capture*\n\nDocument what you learned:\n\n*What happened:* The situation or experiment\n*Lesson:* What did you learn?\n*Apply to:* How will you use this?\n\n_Example:_\nWhat happened: A/B test on pricing page failed\nLesson: Social proof matters more than feature lists\nApply to: Redesign landing page with testimonials first`\n  },\n  competitor: {\n    emoji: '🔍',\n    title: 'Competitor Intel',\n    noteType: 'reference',\n    prompt: `🔍 *Competitor Intelligence*\n\nLog competitor activity:\n\n*Who:* Competitor name\n*What:* What did they do?\n*Threat Level:* Low/Medium/High\n*Our Response:* How should we react?\n\n_Example:_\nWho: AnalyticsPro\nWhat: Launched AI summary feature\nThreat Level: Medium - similar to our roadmap\nOur Response: Accelerate our AI features, differentiate on accuracy`\n  },\n  reflect: {\n    emoji: '🪞',\n    title: 'Weekly Reflection',\n    noteType: 'journal',\n    prompt: `🪞 *Weekly Founder Reflection*\n\nReflect on your week:\n\n*Energy:* How are you feeling? (1-10)\n*Biggest Win:* What went best?\n*Biggest Challenge:* What was hardest?\n*Next Week Focus:* Top priority for next week?\n\n_Example:_\nEnergy: 7/10 - tired but motivated\nBiggest Win: Closed 3 new customers\nBiggest Challenge: Spent too much time on support\nNext Week Focus: Hire first support person`\n  },\n  braindump: {\n    emoji: '🧠',\n    title: 'Brain Dump',\n    noteType: 'idea',\n    prompt: `🧠 *Brain Dump*\n\nJust get it all out! Reply with whatever is on your mind.\n\nNo format required - just type freely.\n\n_I'll capture it as an idea for you to process later._`\n  },\n  gratitude: {\n    emoji: '🙏',\n    title: 'Gratitude',\n    noteType: 'journal',\n    prompt: `🙏 *Daily Gratitude*\n\nWhat are you grateful for today?\n\nList 3 things:\n1.\n2.\n3.\n\n_Taking a moment to appreciate the good stuff._`\n  },\n  mood: {\n    emoji: '😊',\n    title: 'Mood Check',\n    noteType: 'journal',\n    prompt: `😊 *Mood Check-In*\n\nHow are you feeling?\n\n*Mood:* (1-10 or emoji)\n*Energy:* (1-10)\n*Why:* What's influencing your mood?\n*Need:* What would help right now?\n\n_Example:_\nMood: 7/10 😌\nEnergy: 6/10\nWhy: Good progress on project, but tired\nNeed: A walk outside`\n  },\n  workout: {\n    emoji: '💪',\n    title: 'Workout Log',\n    noteType: 'journal',\n    prompt: `💪 *Workout Log*\n\nLog your exercise:\n\n*Type:* What did you do?\n*Duration:* How long?\n*Intensity:* Easy/Moderate/Hard\n*Notes:* How did it feel?\n\n_Example:_\nType: Morning run + stretching\nDuration: 35 min\nIntensity: Moderate\nNotes: Felt sluggish first 10 min, then great`\n  },\n  meal: {\n    emoji: '🍽️',\n    title: 'Meal Log',\n    noteType: 'journal',\n    prompt: `🍽️ *Meal Log*\n\nWhat did you eat?\n\n*Meal:* Breakfast/Lunch/Dinner/Snack\n*Food:* What did you have?\n*How I feel:* Energy after eating?\n\n_Example:_\nMeal: Lunch\nFood: Grilled chicken salad, water\nHow I feel: Good energy, not too heavy`\n  },\n  sleep: {\n    emoji: '😴',\n    title: 'Sleep Log',\n    noteType: 'journal',\n    prompt: `😴 *Sleep Log*\n\nHow did you sleep?\n\n*Hours:* Total sleep time\n*Quality:* 1-10\n*Notes:* Anything affect your sleep?\n\n_Example:_\nHours: 7.5\nQuality: 8/10\nNotes: No phone before bed helped`\n  },\n  goal: {\n    emoji: '🎯',\n    title: 'Goal Check-In',\n    noteType: 'reference',\n    prompt: `🎯 *Goal Check-In*\n\nHow's progress on your goals?\n\n*Goal:* Which goal?\n*Progress:* Where are you now?\n*Next Step:* What's the next action?\n*Blockers:* Anything in the way?\n\n_Example:_\nGoal: Launch MVP by end of month\nProgress: 70% - core features done\nNext Step: Build onboarding flow\nBlockers: Need to finalize pricing`\n  },\n  expense: {\n    emoji: '💰',\n    title: 'Expense',\n    noteType: 'reference',\n    prompt: `💰 *Expense Log*\n\nTrack a purchase:\n\n*Amount:* How much?\n*Category:* Food/Transport/Business/Personal/etc.\n*What:* Description\n*Necessary:* Need or want?\n\n_Example:_\nAmount: $45\nCategory: Business\nWhat: Monthly Notion subscription\nNecessary: Need - core tool`\n  }\n};\n\nconst command = $input.item.json.command;\nconst template = templates[command];\n\nif (!template) {\n  return {\n    message: `❓ Unknown template: /${command}\\n\\nAvailable templates:\\n/standup - Daily standup\\n/idea - Capture an idea\\n/metrics - Log key metrics\\n/customer - Customer feedback\\n/decision - Decision log\\n/win - Celebrate wins\\n/learn - Capture learnings\\n/competitor - Competitor intel\\n/reflect - Weekly reflection\\n/braindump - Quick brain dump`,\n    chatId: $input.item.json.chatId,\n    isError: true\n  };\n}\n\nreturn {\n  message: template.prompt,\n  chatId: $input.item.json.chatId,\n  templateName: command,\n  templateTitle: template.title,\n  templateEmoji: template.emoji,\n  noteType: template.noteType,\n  isError: false\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        -544
+      ],
+      "id": "handle-template",
+      "name": "Handle Template"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        -544
+      ],
+      "id": "send-template-prompt",
+      "name": "Send Template Prompt",
+      "webhookId": "template-prompt-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "❓ Unknown command: /{{ $json.command }}\n\n*Quick Actions:*\n/today /week /overdue /high\n\n*Work Templates:*\n/standup /idea /metrics /customer\n/decision /win /learn /competitor\n/reflect /braindump\n\n*Life Templates:*\n/gratitude /mood /workout /meal\n/sleep /goal /expense\n\n*Other:* /save [page-id]",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -112,
+        -768
+      ],
+      "id": "unknown-command",
+      "name": "Unknown Command",
+      "webhookId": "unknown-cmd-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "cnte17juvB3KKHqp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "content-quick",
+              "name": "content",
+              "value": "={{ $json.transformedText }}",
+              "type": "string"
+            },
+            {
+              "id": "source-quick",
+              "name": "source",
+              "value": "text",
+              "type": "string"
+            },
+            {
+              "id": "when-quick",
+              "name": "when",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "chat-id-quick",
+              "name": "chatId",
+              "value": "={{ $json.chatId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -112,
+        -880
+      ],
+      "id": "transform-quick-action",
+      "name": "Transform Quick Action"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Slash Command?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slash Command?": {
+      "main": [
+        [
+          {
+            "node": "Extract Slash Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Voice or Text?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Slash Command": {
+      "main": [
+        [
+          {
+            "node": "Route Slash Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Slash Command": {
+      "main": [
+        [
+          {
+            "node": "Parse Slash Cmd",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Transform Quick Action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unknown Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Quick Action": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Template": {
+      "main": [
+        [
+          {
+            "node": "Send Template Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice or Text?": {
+      "main": [
+        [
+          {
+            "node": "Get Voice File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Text Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Voice File": {
+      "main": [
+        [
+          {
+            "node": "Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe": {
+      "main": [
+        [
+          {
+            "node": "Set Voice Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Voice Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Text Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Context": {
+      "main": [
+        [
+          {
+            "node": "Format Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Context": {
+      "main": [
+        [
+          {
+            "node": "Detect Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Intent": {
+      "main": [
+        [
+          {
+            "node": "Extract Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Intent": {
+      "main": [
+        [
+          {
+            "node": "Route Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Intent": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Items for Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Capture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Items": {
+      "main": [
+        [
+          {
+            "node": "Has Results?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Results?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Empty Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Query Data": {
+      "main": [
+        [
+          {
+            "node": "Needs AI?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs AI?": {
+      "main": [
+        [
+          {
+            "node": "AI Advice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Query Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Advice": {
+      "main": [
+        [
+          {
+            "node": "Send AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Empty Response": {
+      "main": [
+        [
+          {
+            "node": "Store Conversation (Query)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Query": {
+      "main": [
+        [
+          {
+            "node": "Send Query Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Query Response": {
+      "main": [
+        [
+          {
+            "node": "Store Conversation (Query)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Items for Command": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Extract Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Command": {
+      "main": [
+        [
+          {
+            "node": "Can Execute?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Execute?": {
+      "main": [
+        [
+          {
+            "node": "Route Action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Action": {
+      "main": [
+        [
+          {
+            "node": "Split Complete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split Archive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split Snooze",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split Priority",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split Edit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Recent Completed/Archived",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Complete": {
+      "main": [
+        [
+          {
+            "node": "Mark Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Complete": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Archive": {
+      "main": [
+        [
+          {
+            "node": "Archive Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive Item": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Snooze": {
+      "main": [
+        [
+          {
+            "node": "Update Reminder Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Reminder Date": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Priority": {
+      "main": [
+        [
+          {
+            "node": "Update Priority",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Priority": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Edit": {
+      "main": [
+        [
+          {
+            "node": "Prepare Edit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Edit": {
+      "main": [
+        [
+          {
+            "node": "Route Edit Field",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Edit Field": {
+      "main": [
+        [
+          {
+            "node": "Update Title",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Deadline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Note Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Priority (Edit)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Tags",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Title": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Deadline": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Note Type": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Priority (Edit)": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Tags": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Completed/Archived": {
+      "main": [
+        [
+          {
+            "node": "Process Undo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Undo": {
+      "main": [
+        [
+          {
+            "node": "Has Items to Undo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Items to Undo?": {
+      "main": [
+        [
+          {
+            "node": "Restore to Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore to Pending": {
+      "main": [
+        [
+          {
+            "node": "Merge Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Actions": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Send Action Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Action Response": {
+      "main": [
+        [
+          {
+            "node": "Store Conversation (Action)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Capture": {
+      "main": [
+        [
+          {
+            "node": "Create in Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create in Notion": {
+      "main": [
+        [
+          {
+            "node": "Format Capture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Capture": {
+      "main": [
+        [
+          {
+            "node": "Send Capture Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Capture Response": {
+      "main": [
+        [
+          {
+            "node": "Store Conversation (Capture)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Slash Cmd": {
+      "main": [
+        [
+          {
+            "node": "Fetch Notion Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Notion Page": {
+      "main": [
+        [
+          {
+            "node": "Confirm Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "5f3bba1f-4432-4009-a2c5-6c20fa6465f6",
+  "meta": {
+    "instanceId": "85497a1594c900fdb3ce61acb2a713b87d8e486b0ac44ed69d405e4133ff88dc"
+  },
+  "id": "F6NWTPfWqLbabGhu",
+  "tags": []
+}
